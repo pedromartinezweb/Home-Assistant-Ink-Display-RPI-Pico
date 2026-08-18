@@ -5,7 +5,7 @@ if (NOT DEFINED PICO_SDK_PATH)
 endif()
 
 if (NOT PICO_SDK_PATH)
-    message(FATAL_ERROR "Define PICO_SDK_PATH con la ruta del Raspberry Pi Pico SDK")
+    message(FATAL_ERROR "Set PICO_SDK_PATH to the Raspberry Pi Pico SDK directory")
 endif()
 
 include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
@@ -14,7 +14,7 @@ project(epaper_demo C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-option(EPAPER_USB_LOGS "Activar logs USB" ON)
+option(EPAPER_USB_LOGS "Enable USB logs" ON)
 
 pico_sdk_init()
 

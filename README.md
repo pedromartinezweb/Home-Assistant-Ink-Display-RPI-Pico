@@ -1,173 +1,171 @@
 # RP2040 INK Display Home Assistant
 
-Panel ambiental de bajo consumo para Home Assistant construido con una Raspberry Pi Pico W y una pantalla de tinta electrónica tricolor WeActStudio de 2,13 pulgadas.
+A low-power environmental dashboard for Home Assistant built with a Raspberry Pi Pico W and a 2.13-inch WeActStudio tri-color e-paper display.
 
-El firmware está escrito en C sobre Raspberry Pi Pico SDK. No usa Arduino ni bibliotecas gráficas externas. Obtiene temperatura, humedad, CO₂ y PM2.5 mediante la API REST local de Home Assistant y conserva la última imagen aunque la pantalla quede sin alimentación.
+The firmware is written in C using the Raspberry Pi Pico SDK. It does not use Arduino or external graphics libraries. It retrieves temperature, humidity, CO2, and PM2.5 values from the local Home Assistant REST API, and the last image remains visible even when the display is unpowered.
 
-## Características
+## Features
 
-- Interfaz optimizada para 250 × 122 píxeles en negro, blanco y rojo.
-- Hora de la última lectura recibida desde Home Assistant.
-- Estado automático del CO₂: `BUENO`, `MEDIO` o `ALTO`.
-- Wi-Fi activo únicamente durante la consulta de datos.
-- Reposo del controlador SSD1680 después de cada actualización.
-- Conservación de la última lectura si falla Wi-Fi o Home Assistant.
-- Selección automática entre actualización inicial y ventana diferencial.
-- Recuperación ante errores de `BUSY`, reset o transferencia SPI.
-- Logs de diagnóstico por USB configurables.
-- Pruebas nativas del framebuffer sin hardware.
+- UI optimized for a 250 x 122 pixel black, white, and red display.
+- Timestamp of the latest reading received from Home Assistant.
+- Automatic CO2 status: `GOOD`, `FAIR`, or `HIGH`.
+- Wi-Fi enabled only while retrieving data.
+- SSD1680 deep sleep after each display update.
+- Last valid reading preserved if Wi-Fi or Home Assistant fails.
+- Automatic selection between the initial full frame and differential windows.
+- Recovery from `BUSY`, reset, and SPI transfer errors.
+- Configurable USB diagnostic logs.
+- Native framebuffer tests that run without hardware.
 
-## Hardware compatible
+## Supported hardware
 
-- Raspberry Pi Pico W basada en RP2040.
-- Raspberry Pi Pico 2 W mediante el objetivo `pico2_w`.
-- WeActStudio E-Paper Module 2.13 pulgadas BWR.
-- Panel GDEY0213Z98, controlador SSD1680, 122 × 250 píxeles visibles.
+- Raspberry Pi Pico W based on RP2040.
+- Raspberry Pi Pico 2 W through the `pico2_w` build target.
+- WeActStudio 2.13-inch BWR E-Paper Module.
+- GDEY0213Z98 panel with SSD1680 controller and 122 x 250 visible pixels.
 
-El módulo debe estar configurado en `4-Lines SPI`: `SB1` cerrado y `SB2` abierto.
+The module must be configured for `4-Lines SPI`: `SB1` closed and `SB2` open.
 
-## Conexiones
+## Wiring
 
-| WeActStudio | Función | Pico W | Pin físico |
+| WeActStudio | Function | Pico W | Physical pin |
 |---|---|---|---:|
-| VCC | Alimentación 3,3 V | 3V3(OUT) | 36 |
-| GND | Tierra | GND | 23 |
+| VCC | 3.3 V power | 3V3(OUT) | 36 |
+| GND | Ground | GND | 23 |
 | SDA | SPI0 TX / MOSI | GP19 | 25 |
 | SCL | SPI0 SCK | GP18 | 24 |
-| CS | Selección SPI | GP17 | 22 |
-| DC | Datos / comando | GP20 | 26 |
+| CS | SPI chip select | GP17 | 22 |
+| DC | Data / command | GP20 | 26 |
 | RES | Reset | GP21 | 27 |
-| BUSY | Estado del panel | GP22 | 29 |
+| BUSY | Panel status | GP22 | 29 |
 
-No se conecta MISO. La pantalla debe alimentarse exclusivamente a 3,3 V.
+MISO is not connected. Power the display from 3.3 V only.
 
-## Preparación
-
-Necesitas:
+## Prerequisites
 
 - [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk)
-- Arm GNU Toolchain para `arm-none-eabi`
+- Arm GNU Toolchain for `arm-none-eabi`
 - CMake
 - Ninja
-- Opcionalmente, `picotool`
+- Optionally, `picotool`
 
-Define la ubicación del SDK y asegúrate de que el compilador esté disponible en `PATH`:
+Set the SDK location and make the compiler available in `PATH`:
 
 ```sh
-export PICO_SDK_PATH=/ruta/al/pico-sdk
-export PATH=/ruta/al/arm-gnu-toolchain/bin:$PATH
+export PICO_SDK_PATH=/path/to/pico-sdk
+export PATH=/path/to/arm-gnu-toolchain/bin:$PATH
 ```
 
-## Configuración privada
+## Private configuration
 
-Crea la configuración local a partir del ejemplo:
+Create the local configuration from the provided template:
 
 ```sh
 cp src/config_local.example.h src/config_local.h
 ```
 
-Edita `src/config_local.h`:
+Edit `src/config_local.h`:
 
 ```c
-#define APP_WIFI_SSID "mi_wifi"
-#define APP_WIFI_PASSWORD "mi_clave"
+#define APP_WIFI_SSID "my_wifi"
+#define APP_WIFI_PASSWORD "my_password"
 #define APP_HA_HOST "192.168.1.20"
 #define APP_HA_PORT 8123
-#define APP_HA_TOKEN "token_de_larga_duracion"
-#define APP_HA_TEMPERATURE "sensor.temperatura"
-#define APP_HA_HUMIDITY "sensor.humedad"
+#define APP_HA_TOKEN "long_lived_access_token"
+#define APP_HA_TEMPERATURE "sensor.temperature"
+#define APP_HA_HUMIDITY "sensor.humidity"
 #define APP_HA_CO2 "sensor.co2"
 #define APP_HA_PM25 "sensor.pm25"
 #define APP_REFRESH_SECONDS 300
 ```
 
-En Home Assistant puedes crear el token desde tu perfil, en **Tokens de acceso de larga duración**. Las entidades deben devolver valores numéricos.
+Create a token from your Home Assistant profile under **Long-Lived Access Tokens**. Each configured entity must return a numeric state.
 
-`config_local.h` está excluido de Git. El firmware tampoco imprime el SSID, la contraseña ni el token en los logs.
+`config_local.h` is excluded from Git. The firmware never prints the SSID, Wi-Fi password, or Home Assistant token to the diagnostic log.
 
-## Compilación
+## Build
 
-Para Pico W:
+For Pico W:
 
 ```sh
 ./build.sh pico_w
 ```
 
-Para Pico 2 W:
+For Pico 2 W:
 
 ```sh
 ./build.sh pico2_w
 ```
 
-El resultado se genera en:
+The resulting firmware is written to:
 
 ```text
 build-pico_w/epaper_demo.uf2
 ```
 
-## Carga del firmware
+## Flash
 
-Mantén pulsado `BOOTSEL`, conecta la Pico por USB y copia el UF2 a la unidad `RPI-RP2`.
+Hold `BOOTSEL`, connect the Pico over USB, and copy the UF2 file to the `RPI-RP2` drive.
 
-También puedes cargarlo con `picotool`:
+You can also flash it with `picotool`:
 
 ```sh
 picotool load -f -x build-pico_w/epaper_demo.uf2
 ```
 
-## Pruebas
+## Test
 
-Las pruebas del framebuffer y la composición se ejecutan en el equipo local:
+Run the framebuffer and dashboard tests on the host computer:
 
 ```sh
 ./test.sh
 ```
 
-Los logs USB están activos de forma predeterminada. Para generar una versión sin consola USB:
+USB logs are enabled by default. Build a lower-power version without the USB console with:
 
 ```sh
 EPAPER_USB_LOGS=OFF ./build.sh pico_w
 ```
 
-## Ciclo de funcionamiento
+## Runtime flow
 
 ```mermaid
 flowchart LR
-    A[Encender Wi-Fi] --> B[Consultar Home Assistant]
-    B --> C[Apagar Wi-Fi]
-    C --> D{Lectura válida}
-    D -- No --> E[Conservar pantalla]
-    D -- Sí --> F[Componer framebuffer]
-    F --> G{Hay cambios}
-    G -- No --> H[Esperar próximo ciclo]
-    G -- Sí --> I[Activar e-paper]
-    I --> J[Actualizar y dormir panel]
+    A[Enable Wi-Fi] --> B[Query Home Assistant]
+    B --> C[Disable Wi-Fi]
+    C --> D{Valid reading}
+    D -- No --> E[Keep current display]
+    D -- Yes --> F[Render framebuffer]
+    F --> G{Frame changed}
+    G -- No --> H[Wait for next cycle]
+    G -- Yes --> I[Wake e-paper]
+    I --> J[Update and sleep panel]
 ```
 
-## Actualización de la pantalla
+## Display updates
 
-El firmware calcula la región mínima que ha cambiado y transmite solamente esa ventana. Esto reduce trabajo de CPU y tráfico SPI.
+The firmware calculates the smallest changed region and transfers only that window. This reduces CPU work and SPI traffic.
 
-El GDEY0213Z98 tricolor admite direccionamiento parcial de RAM, pero su SSD1680 ejecuta una forma de onda física de pantalla completa también para esa ventana. En el hardware probado, `BUSY` permanece activo aproximadamente 18,2 segundos. Es una limitación del panel, no del transporte SPI.
+The tri-color GDEY0213Z98 supports partial RAM addressing, but its SSD1680 runs a full-screen physical waveform for partial windows as well. On the tested hardware, `BUSY` remains active for approximately 18.2 seconds. This is a panel limitation rather than an SPI transport limitation.
 
-## Arquitectura
+## Architecture
 
-| Archivo | Responsabilidad |
+| File | Responsibility |
 |---|---|
-| `src/epd.c` | Protocolo SSD1680, SPI, reset, `BUSY` y recuperación |
-| `src/epaper.c` | Estado del panel y selección de actualización |
-| `src/frame.c` | Framebuffer, tipografía y primitivas gráficas |
-| `src/dashboard.c` | Composición y validación de la interfaz |
-| `src/home_assistant.c` | Cliente REST con memoria fija y tiempos máximos |
-| `src/wifi_session.c` | Ciclo de vida y apagado de Wi-Fi |
-| `src/app.c` | Orquestación, reintentos y política de actualización |
-| `src/main.c` | Pines y arranque de la aplicación |
+| `src/epd.c` | SSD1680 protocol, SPI, reset, `BUSY`, and recovery |
+| `src/epaper.c` | Display state and update selection |
+| `src/frame.c` | Framebuffer, font, and drawing primitives |
+| `src/dashboard.c` | UI composition and reading validation |
+| `src/home_assistant.c` | Fixed-memory REST client with bounded timeouts |
+| `src/wifi_session.c` | Wi-Fi lifecycle and radio shutdown |
+| `src/app.c` | Orchestration, retry policy, and update schedule |
+| `src/main.c` | Pin configuration and application startup |
 
-Cada plano de color ocupa 4.000 bytes. El comando `0x24` controla el negro y `0x26` el rojo.
+Each color plane occupies 4,000 bytes. Command `0x24` controls black and command `0x26` controls red.
 
-## Seguridad
+## Security
 
-- No publiques `src/config_local.h`.
-- No distribuyas un UF2 compilado con credenciales reales: las cadenas quedan embebidas en el binario.
-- La conexión actual usa HTTP local. No expongas el puerto 8123 de Home Assistant a Internet.
-- Usa un token dedicado y revócalo si el dispositivo deja de estar bajo tu control.
+- Never publish `src/config_local.h`.
+- Never distribute a UF2 built with real credentials because its strings are embedded in the binary.
+- The current connection uses local HTTP. Do not expose the Home Assistant port `8123` to the Internet.
+- Use a dedicated token and revoke it if the device is no longer under your control.

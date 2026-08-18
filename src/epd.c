@@ -76,7 +76,7 @@ static EpdStatus reset(const Epd *epd) {
     sleep_ms(RESET_MS);
     gpio_put(epd->config.rst, true);
     sleep_ms(10);
-    printf("[%lu ms] RESET_FISICO completado BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
+    printf("[%lu ms] HARD_RESET complete BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
     return EPD_OK;
 }
 
@@ -115,12 +115,12 @@ static EpdStatus configure(const Epd *epd) {
     if (!cmd(epd, 0x12)) {
         return EPD_ERROR_SPI;
     }
-    printf("[%lu ms] SWRESET enviado BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
+    printf("[%lu ms] SWRESET sent BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
     sleep_ms(10);
 
     EpdStatus status = wait_level(epd, false, RESET_TIMEOUT_MS, EPD_ERROR_BUSY_IDLE);
     if (status != EPD_OK) {
-        printf("[%lu ms] SWRESET sin liberar BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
+        printf("[%lu ms] SWRESET BUSY_not_released=%d\n", now_ms(), gpio_get(epd->config.busy));
         return status;
     }
 
@@ -222,7 +222,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
         uint32_t update_start = now_ms();
         uint32_t requested_baud = attempt == 1 ? epd->config.baud : RECOVERY_BAUD;
         uint32_t actual_baud = spi_set_baudrate(epd->config.spi, requested_baud);
-        printf("[%lu ms] ACTUALIZACION intento=%u spi=%lu\n",
+        printf("[%lu ms] UPDATE attempt=%u spi=%lu\n",
                now_ms(),
                attempt,
                (unsigned long)actual_baud);
@@ -236,7 +236,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
             if (!write_rows(epd, 0x24, image) || !write_rows(epd, 0x26, image)) {
                 status = EPD_ERROR_SPI;
             }
-            printf("[%lu ms] TRANSFERENCIA_RAM ms=%lu\n",
+            printf("[%lu ms] RAM_TRANSFER ms=%lu\n",
                    now_ms(),
                    (unsigned long)(now_ms() - transfer_start));
         }
@@ -246,7 +246,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
             value = report(status, attempt);
         }
 
-        printf("[%lu ms] ACTUALIZACION %s total=%lu busy=%lu\n",
+        printf("[%lu ms] UPDATE %s total=%lu busy=%lu\n",
                now_ms(),
                epd_status_name(value.status),
                (unsigned long)value.elapsed_ms,
@@ -258,7 +258,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
                 return value;
             }
             value.elapsed_ms = now_ms() - update_start;
-            printf("[%lu ms] ACTUALIZACION_TOTAL ms=%lu refresco=%lu\n",
+            printf("[%lu ms] FULL_UPDATE ms=%lu refresh=%lu\n",
                    now_ms(),
                    (unsigned long)value.elapsed_ms,
                    (unsigned long)value.busy_ms);
@@ -302,7 +302,7 @@ EpdStatus epd_open(Epd *epd, const EpdConfig *config) {
     }
 
     epd->open = true;
-    printf("[%lu ms] SPI listo solicitado=%lu real=%lu\n",
+    printf("[%lu ms] SPI ready requested=%lu actual=%lu\n",
            now_ms(),
            (unsigned long)config->baud,
            (unsigned long)baud);
@@ -359,7 +359,7 @@ EpdReport epd_draw_partial(Epd *epd,
     }
     value.elapsed_ms = now_ms() - start;
 
-    printf("[%lu ms] PARCIAL x=%u y=%u w=%u h=%u bytes=%lu spi=%lu transferencia=%lu total=%lu busy=%lu estado=%s\n",
+    printf("[%lu ms] PARTIAL x=%u y=%u w=%u h=%u bytes=%lu spi=%lu transfer=%lu total=%lu busy=%lu status=%s\n",
            now_ms(),
            x,
            y,
@@ -379,15 +379,15 @@ const char *epd_status_name(EpdStatus status) {
         case EPD_OK:
             return "OK";
         case EPD_ERROR_ARGUMENT:
-            return "ERROR_ARGUMENTO";
+            return "ERROR_ARGUMENT";
         case EPD_ERROR_SPI:
             return "ERROR_SPI";
         case EPD_ERROR_BUSY_IDLE:
-            return "ERROR_BUSY_REPOSO";
+            return "ERROR_BUSY_IDLE";
         case EPD_ERROR_BUSY_START:
-            return "ERROR_BUSY_INICIO";
+            return "ERROR_BUSY_START";
         case EPD_ERROR_BUSY_END:
-            return "ERROR_BUSY_FIN";
+            return "ERROR_BUSY_END";
     }
-    return "ERROR_DESCONOCIDO";
+    return "ERROR_UNKNOWN";
 }

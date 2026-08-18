@@ -42,12 +42,12 @@ static void metric(Dashboard *dashboard, int x, const char *label, const char *v
 
 static const char *air_quality(int co2) {
     if (co2 <= 800) {
-        return "BUENO";
+        return "GOOD";
     }
     if (co2 <= 1200) {
-        return "MEDIO";
+        return "FAIR";
     }
-    return "ALTO";
+    return "HIGH";
 }
 
 static void hero(Dashboard *dashboard, const char *value, const char *status) {
@@ -56,7 +56,7 @@ static void hero(Dashboard *dashboard, const char *value, const char *status) {
     frame_text_landscape(dashboard->red, 8, 50, value, scale);
     int unit_x = 8 + text_width(value, scale) + UNIT_GAP;
     frame_text_landscape(dashboard->red, unit_x, scale == 4 ? 69 : 62, "PPM", 1);
-    frame_text_landscape(dashboard->black, 145, 41, "ESTADO", 1);
+    frame_text_landscape(dashboard->black, 145, 41, "STATUS", 1);
     frame_text_landscape(dashboard->black, 145, 54, status, 2);
 }
 
@@ -64,7 +64,7 @@ static void header(Dashboard *dashboard, const Reading *reading) {
     char time[12];
     snprintf(time, sizeof(time), "ACT %02d:%02d", reading->hour, reading->minute);
     frame_fill_rect_landscape(dashboard->black, 1, 1, 248, 27, true);
-    frame_text_landscape_color(dashboard->black, 8, 10, "AIRE INTERIOR", 1, false);
+    frame_text_landscape_color(dashboard->black, 8, 10, "INDOOR AIR", 1, false);
     frame_text_landscape_color(dashboard->black, 188, 10, time, 1, false);
     frame_fill_rect_landscape(dashboard->red, 1, 28, 248, 3, true);
 }

@@ -9,7 +9,7 @@ usb_logs=${EPAPER_USB_LOGS:-ON}
 case "$board" in
     pico_w|pico2_w) ;;
     *)
-        echo "Placa no válida: $board" >&2
+        echo "Unsupported board: $board" >&2
         exit 1
         ;;
 esac
@@ -25,12 +25,12 @@ if [ -z "${PICO_SDK_PATH:-}" ]; then
 fi
 
 if [ -z "${PICO_SDK_PATH:-}" ]; then
-    echo "No se encuentra Raspberry Pi Pico SDK" >&2
+    echo "Raspberry Pi Pico SDK not found" >&2
     exit 1
 fi
 
 if ! command -v arm-none-eabi-gcc >/dev/null 2>&1; then
-    echo "No se encuentra Arm GNU Toolchain" >&2
+    echo "Arm GNU Toolchain not found" >&2
     exit 1
 fi
 

@@ -17,7 +17,7 @@ static uint32_t now_ms(void) {
 
 static void halt(EpdStatus status) {
     for (;;) {
-        printf("[%lu ms] SISTEMA_DETENIDO estado=%s\n", now_ms(), epd_status_name(status));
+        printf("[%lu ms] SYSTEM_HALTED status=%s\n", now_ms(), epd_status_name(status));
         sleep_ms(1000);
     }
 }
@@ -34,7 +34,7 @@ static void probe_wifi(void) {
                                                   APP_WIFI_SSID,
                                                   APP_WIFI_PASSWORD,
                                                   15000);
-    printf("[%lu ms] WIFI_PRUEBA estado=%d\n", now_ms(), status);
+    printf("[%lu ms] WIFI_PROBE status=%d\n", now_ms(), status);
     if (status == WIFI_SESSION_OK) {
         wifi_session_close(&wifi);
     }
@@ -51,7 +51,7 @@ static bool fetch_reading(Reading *reading) {
                                                        APP_WIFI_PASSWORD,
                                                        15000);
     if (wifi_status != WIFI_SESSION_OK) {
-        printf("[%lu ms] WIFI_ERROR estado=%d\n", now_ms(), wifi_status);
+        printf("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
         return false;
     }
 
@@ -69,7 +69,7 @@ static bool fetch_reading(Reading *reading) {
     wifi_session_close(&wifi);
 
     if (status != HOME_ASSISTANT_OK) {
-        printf("[%lu ms] HOME_ASSISTANT_ERROR estado=%d\n", now_ms(), status);
+        printf("[%lu ms] HOME_ASSISTANT_ERROR status=%d\n", now_ms(), status);
         return false;
     }
 
@@ -79,7 +79,7 @@ static bool fetch_reading(Reading *reading) {
     reading->pm25 = value.pm25;
     reading->hour = value.hour;
     reading->minute = value.minute;
-    printf("[%lu ms] HOME_ASSISTANT_OK hora=%02d:%02d temperatura=%d humedad=%d co2=%d pm25=%d\n",
+    printf("[%lu ms] HOME_ASSISTANT_OK time=%02d:%02d temperature=%d humidity=%d co2=%d pm25=%d\n",
            now_ms(),
            reading->hour,
            reading->minute,
@@ -98,7 +98,7 @@ static void present(App *app) {
     EpaperResult result = epaper_present(&app->epaper,
                                          app->dashboard.black,
                                          app->dashboard.red);
-    printf("[%lu ms] PRESENTACION modo=%d estado=%s bytes=%lu total=%lu busy=%lu sleep=%d\n",
+    printf("[%lu ms] PRESENT mode=%d status=%s bytes=%lu total=%lu busy=%lu sleep=%d\n",
            now_ms(),
            result.mode,
            epd_status_name(result.driver.status),
@@ -116,7 +116,7 @@ void app_run(App *app, const EpdConfig *config) {
         halt(EPD_ERROR_ARGUMENT);
     }
 
-    printf("[%lu ms] ARRANQUE PRODUCCION v26 epaper=ondemand wifi=session ha=rest\n", now_ms());
+    printf("[%lu ms] PRODUCTION_START v26 epaper=ondemand wifi=session ha=rest\n", now_ms());
     EpdStatus status = epaper_open(&app->epaper, config);
     if (status != EPD_OK) {
         halt(status);
@@ -134,7 +134,7 @@ void app_run(App *app, const EpdConfig *config) {
         if (app->has_reading) {
             present(app);
         } else {
-            printf("[%lu ms] ESPERA_DATOS no_se_actualiza_pantalla\n", now_ms());
+            printf("[%lu ms] WAITING_FOR_DATA display_unchanged\n", now_ms());
         }
         uint32_t interval_seconds = app->has_reading ? APP_REFRESH_SECONDS : STARTUP_RETRY_SECONDS;
         uint32_t interval_ms = interval_seconds * 1000U;
