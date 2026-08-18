@@ -1,0 +1,6 @@
+src/config_local.h
+build-*/
+build-test/
+.DS_Store
+firmware/*.uf2
+compile_commands.json
