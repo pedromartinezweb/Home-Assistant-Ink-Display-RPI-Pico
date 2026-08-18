@@ -4,6 +4,8 @@ A low-power environmental dashboard for Home Assistant built with a Raspberry Pi
 
 The firmware is written in C using the Raspberry Pi Pico SDK. It does not use Arduino or external graphics libraries. It retrieves temperature, humidity, CO2, and PM2.5 values from the local Home Assistant REST API, and the last image remains visible even when the display is unpowered.
 
+![RP2040 Home Assistant e-paper dashboard](docs/rp2040-ink-home-assistant.jpg)
+
 ## Features
 
 - UI optimized for a 250 x 122 pixel black, white, and red display.
@@ -78,6 +80,33 @@ Edit `src/config_local.h`:
 #define APP_HA_PM25 "sensor.pm25"
 #define APP_REFRESH_SECONDS 300
 ```
+
+All entity IDs are configured in this single block. They can point to any Home Assistant entities that expose numeric states.
+
+### Display text
+
+Every label shown on the e-paper display is configured in the same file:
+
+```c
+#define APP_UI_TITLE "INDOOR AIR"
+#define APP_UI_UPDATED "ACT"
+#define APP_UI_STATUS "STATUS"
+#define APP_UI_GOOD "GOOD"
+#define APP_UI_FAIR "FAIR"
+#define APP_UI_HIGH "HIGH"
+#define APP_UI_CO2 "CO2"
+#define APP_UI_CO2_UNIT "PPM"
+#define APP_UI_TEMPERATURE "TEMP"
+#define APP_UI_TEMPERATURE_UNIT "C"
+#define APP_UI_HUMIDITY "HUM"
+#define APP_UI_HUMIDITY_UNIT "%"
+#define APP_UI_PM25 "PM2.5"
+#define APP_UI_PM25_UNIT "UG/M3"
+#define APP_CO2_GOOD_MAX 800
+#define APP_CO2_FAIR_MAX 1200
+```
+
+The built-in font supports uppercase `A-Z`, digits, spaces, `.`, `:`, `%`, and `/`. Keep metric labels at 12 characters or fewer and status values at 8 characters or fewer. The dashboard validates configuration limits before drawing to prevent text from overflowing the display.
 
 Create a token from your Home Assistant profile under **Long-Lived Access Tokens**. Each configured entity must return a numeric state.
 

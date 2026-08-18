@@ -11,6 +11,25 @@ enum {
     STARTUP_RETRY_SECONDS = 30
 };
 
+static const DashboardConfig dashboard_config = {
+    .title = APP_UI_TITLE,
+    .updated = APP_UI_UPDATED,
+    .status = APP_UI_STATUS,
+    .good = APP_UI_GOOD,
+    .fair = APP_UI_FAIR,
+    .high = APP_UI_HIGH,
+    .co2 = APP_UI_CO2,
+    .co2_unit = APP_UI_CO2_UNIT,
+    .temperature = APP_UI_TEMPERATURE,
+    .temperature_unit = APP_UI_TEMPERATURE_UNIT,
+    .humidity = APP_UI_HUMIDITY,
+    .humidity_unit = APP_UI_HUMIDITY_UNIT,
+    .pm25 = APP_UI_PM25,
+    .pm25_unit = APP_UI_PM25_UNIT,
+    .co2_good_max = APP_CO2_GOOD_MAX,
+    .co2_fair_max = APP_CO2_FAIR_MAX
+};
+
 static uint32_t now_ms(void) {
     return to_ms_since_boot(get_absolute_time());
 }
@@ -91,7 +110,7 @@ static bool fetch_reading(Reading *reading) {
 }
 
 static void present(App *app) {
-    if (!dashboard_draw(&app->dashboard, &app->reading)) {
+    if (!dashboard_draw(&app->dashboard, &app->reading, &dashboard_config)) {
         halt(EPD_ERROR_ARGUMENT);
     }
 

@@ -15,6 +15,24 @@ static bool pixel(const uint8_t *buffer, int x, int y) {
 
 int main(void) {
     Dashboard dashboard;
+    DashboardConfig config = {
+        .title = "INDOOR AIR",
+        .updated = "ACT",
+        .status = "STATUS",
+        .good = "GOOD",
+        .fair = "FAIR",
+        .high = "HIGH",
+        .co2 = "CO2",
+        .co2_unit = "PPM",
+        .temperature = "TEMP",
+        .temperature_unit = "C",
+        .humidity = "HUM",
+        .humidity_unit = "%",
+        .pm25 = "PM2.5",
+        .pm25_unit = "UG/M3",
+        .co2_good_max = 800,
+        .co2_fair_max = 1200
+    };
     Reading valid = {
         .temperature_tenths = 234,
         .humidity = 48,
@@ -26,10 +44,11 @@ int main(void) {
     Reading invalid = valid;
     invalid.humidity = 101;
 
-    assert(!dashboard_draw(NULL, &valid));
-    assert(!dashboard_draw(&dashboard, NULL));
-    assert(!dashboard_draw(&dashboard, &invalid));
-    assert(dashboard_draw(&dashboard, &valid));
+    assert(!dashboard_draw(NULL, &valid, &config));
+    assert(!dashboard_draw(&dashboard, NULL, &config));
+    assert(!dashboard_draw(&dashboard, &valid, NULL));
+    assert(!dashboard_draw(&dashboard, &invalid, &config));
+    assert(dashboard_draw(&dashboard, &valid, &config));
     assert(pixel(dashboard.black, 20, 24));
     assert(!pixel(dashboard.red, 20, 24));
     assert(!pixel(dashboard.black, 10, 29));
@@ -40,7 +59,7 @@ int main(void) {
     Dashboard next;
     Reading changed = valid;
     changed.temperature_tenths = 235;
-    assert(dashboard_draw(&next, &changed));
+    assert(dashboard_draw(&next, &changed, &config));
 
     FrameRegion region;
     assert(frame_diff_region(dashboard.black, dashboard.red, next.black, next.red, &region));
@@ -52,12 +71,25 @@ int main(void) {
 
     Reading next_minute = valid;
     next_minute.minute++;
-    assert(dashboard_draw(&next, &next_minute));
+    assert(dashboard_draw(&next, &next_minute, &config));
     assert(frame_diff_region(dashboard.black, dashboard.red, next.black, next.red, &region));
     assert(region.x < 24);
 
     invalid = valid;
     invalid.hour = 24;
-    assert(!dashboard_draw(&dashboard, &invalid));
+    assert(!dashboard_draw(&dashboard, &invalid, &config));
+
+    Dashboard customized;
+    config.title = "OFFICE AIR";
+    config.temperature = "ROOM";
+    assert(dashboard_draw(&customized, &valid, &config));
+    assert(frame_diff_region(dashboard.black,
+                             dashboard.red,
+                             customized.black,
+                             customized.red,
+                             &region));
+
+    config.co2_fair_max = config.co2_good_max;
+    assert(!dashboard_draw(&dashboard, &valid, &config));
     return 0;
 }

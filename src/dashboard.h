@@ -20,6 +20,25 @@ typedef struct {
     uint8_t red[EPD_BUFFER_SIZE];
 } Dashboard;
 
-bool dashboard_draw(Dashboard *dashboard, const Reading *reading);
+typedef struct {
+    const char *title;
+    const char *updated;
+    const char *status;
+    const char *good;
+    const char *fair;
+    const char *high;
+    const char *co2;
+    const char *co2_unit;
+    const char *temperature;
+    const char *temperature_unit;
+    const char *humidity;
+    const char *humidity_unit;
+    const char *pm25;
+    const char *pm25_unit;
+    int co2_good_max;
+    int co2_fair_max;
+} DashboardConfig;
+
+bool dashboard_draw(Dashboard *dashboard, const Reading *reading, const DashboardConfig *config);
 
 #endif
