@@ -11,10 +11,42 @@ function Refresh-Path {
 }
 
 function Has-Tools {
+    $compiler = Get-Command arm-none-eabi-gcc -ErrorAction SilentlyContinue
+    if (-not $compiler) {
+        return $false
+    }
+    $spec = & $compiler.Source -print-file-name=nosys.specs
     return (Get-Command git -ErrorAction SilentlyContinue) -and
         (Get-Command cmake -ErrorAction SilentlyContinue) -and
         (Get-Command ninja -ErrorAction SilentlyContinue) -and
-        (Get-Command arm-none-eabi-gcc -ErrorAction SilentlyContinue)
+        ($spec -ne "nosys.specs") -and
+        (Test-Path $spec)
+}
+
+function Get-PicoVolume {
+    return Get-Volume -ErrorAction SilentlyContinue |
+        Where-Object { $_.FileSystemLabel -in @("RPI-RP2", "RP2350") } |
+        Select-Object -First 1
+}
+
+function Upload-Firmware($Path) {
+    $tool = Get-Command picotool -ErrorAction SilentlyContinue
+    if ($tool) {
+        & $tool.Source load -f -v -x $Path
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Firmware uploaded with picotool."
+            return $true
+        }
+    }
+    $volume = Get-PicoVolume
+    if ($volume -and $volume.DriveLetter) {
+        Copy-Item $Path "$($volume.DriveLetter):\" -Force
+        Write-Host "Firmware uploaded through $($volume.FileSystemLabel)."
+        return $true
+    }
+    Write-Host "Automatic upload could not find a Pico."
+    Write-Host "Hold BOOTSEL while connecting it, then copy the UF2 to the RPI-RP2 or RP2350 drive."
+    return $false
 }
 
 if (-not (Has-Tools)) {
@@ -123,4 +155,9 @@ Copy-Item (Join-Path $buildDir "ha_ink_display.uf2") $output -Force
 Write-Host ""
 Write-Host "Firmware ready:"
 Write-Host $output
-Write-Host "Hold BOOTSEL while connecting the Pico, then copy this UF2 to the RPI-RP2 drive."
+$upload = Read-Host "Upload it to the connected Pico now? [Y/n]"
+if ([string]::IsNullOrWhiteSpace($upload) -or $upload -match "^(y|yes)$") {
+    Upload-Firmware $output | Out-Null
+} else {
+    Write-Host "Upload skipped."
+}

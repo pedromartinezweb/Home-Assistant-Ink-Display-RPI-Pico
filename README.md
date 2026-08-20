@@ -107,9 +107,13 @@ The finished file is placed in `firmware`:
 firmware/ha_ink_display-pico_w.uf2
 ```
 
+The installer then asks whether it should upload the firmware to a connected Pico. It uses `picotool` when available and also supports a Pico already connected in BOOTSEL mode.
+
 The Wi-Fi configuration file and generated UF2 are excluded from Git. Do not share the UF2 because it contains your Wi-Fi credentials.
 
 ## 5. Install the UF2
+
+If the setup tool reports that it uploaded the firmware successfully, continue directly to the next section.
 
 1. Disconnect the Pico from USB.
 2. Hold the `BOOTSEL` button.

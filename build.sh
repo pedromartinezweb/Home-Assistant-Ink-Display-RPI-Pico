@@ -33,5 +33,12 @@ if ! command -v arm-none-eabi-gcc >/dev/null 2>&1; then
     exit 1
 fi
 
+spec_file=$(arm-none-eabi-gcc -print-file-name=nosys.specs)
+if [ "$spec_file" = "nosys.specs" ] || [ ! -f "$spec_file" ]; then
+    echo "Arm Newlib is missing from the selected toolchain" >&2
+    echo "Run setup.sh to install and select the complete Arm GNU Toolchain" >&2
+    exit 1
+fi
+
 cmake -S "$project_dir" -B "$build_dir" -G Ninja -DPICO_BOARD="$board" -DCMAKE_BUILD_TYPE=Release -DEPAPER_USB_LOGS="$usb_logs"
 cmake --build "$build_dir"

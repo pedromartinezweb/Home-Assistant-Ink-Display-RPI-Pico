@@ -5,11 +5,26 @@ project_dir=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
 tools_dir="$project_dir/.tools"
 sdk_dir="$tools_dir/pico-sdk"
 
+compiler_ready() {
+    command -v arm-none-eabi-gcc >/dev/null 2>&1 || return 1
+    spec_file=$(arm-none-eabi-gcc -print-file-name=nosys.specs)
+    [ "$spec_file" != "nosys.specs" ] && [ -f "$spec_file" ]
+}
+
 has_tools() {
     command -v git >/dev/null 2>&1 &&
     command -v cmake >/dev/null 2>&1 &&
     command -v ninja >/dev/null 2>&1 &&
-    command -v arm-none-eabi-gcc >/dev/null 2>&1
+    compiler_ready
+}
+
+select_macos_toolchain() {
+    compiler=$(find /Applications/ArmGNUToolchain -path '*/arm-none-eabi/bin/arm-none-eabi-gcc' -type f 2>/dev/null | sort -V | tail -n 1)
+    [ -n "$compiler" ] || return 1
+    toolchain_bin=$(dirname "$compiler")
+    PICO_TOOLCHAIN_PATH=$(dirname "$toolchain_bin")
+    PATH="$toolchain_bin:$PATH"
+    export PICO_TOOLCHAIN_PATH PATH
 }
 
 install_macos() {
@@ -21,8 +36,48 @@ install_macos() {
             eval "$(/usr/local/bin/brew shellenv)"
         fi
     fi
-    brew install git cmake ninja arm-none-eabi-gcc
+    brew install git cmake ninja picotool
+    brew install --cask gcc-arm-embedded
+    select_macos_toolchain
 }
+
+copy_to_volume() {
+    firmware=$1
+    for volume in \
+        /Volumes/RPI-RP2 \
+        /Volumes/RP2350 \
+        "/media/${USER:-}/RPI-RP2" \
+        "/media/${USER:-}/RP2350" \
+        "/run/media/${USER:-}/RPI-RP2" \
+        "/run/media/${USER:-}/RP2350"
+    do
+        if [ -d "$volume" ]; then
+            cp "$firmware" "$volume/"
+            sync
+            printf '%s\n' "Firmware uploaded through $volume."
+            return 0
+        fi
+    done
+    return 1
+}
+
+upload_firmware() {
+    firmware=$1
+    if command -v picotool >/dev/null 2>&1 && picotool load -f -v -x "$firmware"; then
+        printf '%s\n' "Firmware uploaded with picotool."
+        return 0
+    fi
+    if copy_to_volume "$firmware"; then
+        return 0
+    fi
+    printf '%s\n' "Automatic upload could not find a Pico."
+    printf '%s\n' "Hold BOOTSEL while connecting it, then copy the UF2 to the RPI-RP2 or RP2350 drive."
+    return 1
+}
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    select_macos_toolchain || true
+fi
 
 install_linux() {
     if ! command -v apt-get >/dev/null 2>&1; then
@@ -35,9 +90,19 @@ install_linux() {
     fi
     $admin apt-get update
     $admin apt-get install -y git cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential
+    if apt-cache show picotool >/dev/null 2>&1; then
+        $admin apt-get install -y picotool
+    fi
 }
 
+needs_install=false
 if ! has_tools; then
+    needs_install=true
+elif [ "$(uname -s)" = "Darwin" ] && ! command -v picotool >/dev/null 2>&1; then
+    needs_install=true
+fi
+
+if [ "$needs_install" = true ]; then
     printf '%s\n' "Required build tools are missing. The installer will add them now."
     case "$(uname -s)" in
         Darwin) install_macos ;;
@@ -115,6 +180,12 @@ cmake -E remove_directory "$project_dir/build-$board"
 "$project_dir/build.sh" "$board"
 mkdir -p "$project_dir/firmware"
 cp "$project_dir/build-$board/ha_ink_display.uf2" "$project_dir/firmware/ha_ink_display-$board.uf2"
+output="$project_dir/firmware/ha_ink_display-$board.uf2"
 printf '\n%s\n' "Firmware ready:"
-printf '%s\n' "$project_dir/firmware/ha_ink_display-$board.uf2"
-printf '%s\n' "Hold BOOTSEL while connecting the Pico, then copy this UF2 to the RPI-RP2 drive."
+printf '%s\n' "$output"
+printf '%s' "Upload it to the connected Pico now? [Y/n]: "
+read -r upload_choice
+case "${upload_choice:-y}" in
+    y|Y|yes|YES|Yes) upload_firmware "$output" || true ;;
+    *) printf '%s\n' "Upload skipped." ;;
+esac
