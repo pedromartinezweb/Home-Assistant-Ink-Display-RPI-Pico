@@ -94,7 +94,7 @@ static void header(Dashboard *dashboard, const Reading *reading, const Dashboard
     frame_fill_rect_landscape(dashboard->black, 1, 1, 248, 27, true);
     frame_text_landscape_color(dashboard->black, 8, 10, config->title, 1, false);
     frame_text_landscape_color(dashboard->black, time_x, 10, time, 1, false);
-    frame_fill_rect_landscape(dashboard->red, 1, 28, 248, 3, true);
+    frame_fill_rect_landscape(dashboard->black, 1, 28, 248, 3, true);
 }
 
 static void layout(Dashboard *dashboard) {

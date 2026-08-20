@@ -40,7 +40,7 @@
 #endif
 
 #ifndef APP_UI_TITLE
-#define APP_UI_TITLE "INDOOR AIR"
+#define APP_UI_TITLE "HOUSE"
 #endif
 
 #ifndef APP_UI_UPDATED

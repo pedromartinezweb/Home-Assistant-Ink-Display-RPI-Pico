@@ -90,7 +90,7 @@ All entity IDs are configured in this single block. They can point to any Home A
 Every label shown on the e-paper display is configured in the same file:
 
 ```c
-#define APP_UI_TITLE "INDOOR AIR"
+#define APP_UI_TITLE "HOUSE"
 #define APP_UI_UPDATED "ACT"
 #define APP_UI_EXTERNAL_TEMPERATURE "EXT TEMP"
 #define APP_UI_EXTERNAL_TEMPERATURE_UNIT "C"

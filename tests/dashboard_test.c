@@ -16,7 +16,7 @@ static bool pixel(const uint8_t *buffer, int x, int y) {
 int main(void) {
     Dashboard dashboard;
     DashboardConfig config = {
-        .title = "INDOOR AIR",
+        .title = "HOUSE",
         .updated = "ACT",
         .external_temperature = "EXT TEMP",
         .external_temperature_unit = "C",
@@ -49,8 +49,8 @@ int main(void) {
     assert(dashboard_draw(&dashboard, &valid, &config));
     assert(pixel(dashboard.black, 20, 24));
     assert(!pixel(dashboard.red, 20, 24));
-    assert(!pixel(dashboard.black, 10, 29));
-    assert(pixel(dashboard.red, 10, 29));
+    assert(pixel(dashboard.black, 10, 29));
+    assert(!pixel(dashboard.red, 10, 29));
     assert(pixel(dashboard.black, 132, 40));
     assert(!pixel(dashboard.red, 132, 40));
     assert(pixel(dashboard.black, 8, 40));
