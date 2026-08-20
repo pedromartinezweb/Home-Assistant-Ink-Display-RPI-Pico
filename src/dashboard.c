@@ -131,12 +131,17 @@ static void draw_header(Dashboard *dashboard, const DashboardData *data, const D
 static void draw_item(Dashboard *dashboard,
                       const DashboardItem *item,
                       int milli,
+                      bool valid,
                       int x,
                       int width,
                       int top,
                       int max_scale) {
     char value[24];
-    format_value(value, sizeof(value), milli, item->decimals);
+    if (valid) {
+        format_value(value, sizeof(value), milli, item->decimals);
+    } else {
+        memcpy(value, "N/A", 4);
+    }
     const char *unit = item->unit;
     if (text_width(value, 1) + UNIT_GAP + text_width(unit, 1) > width) {
         unit = "";
@@ -147,7 +152,7 @@ static void draw_item(Dashboard *dashboard,
     int scale = value_scale(value, unit, width, max_scale);
     int value_y = top + 14;
     int unit_y = value_y + scale * 7 - 7;
-    uint8_t *plane = use_red(item, milli) ? dashboard->red : dashboard->black;
+    uint8_t *plane = valid && use_red(item, milli) ? dashboard->red : dashboard->black;
 
     frame_text_landscape(plane, x, top + 2, item->label, 1);
     frame_text_landscape(plane, x, value_y, value, scale);
@@ -177,6 +182,7 @@ static void draw_row(Dashboard *dashboard,
         draw_item(dashboard,
                   &config->items[index],
                   data->values_milli[index],
+                  data->valid[index],
                   x,
                   right - x - 4,
                   top,

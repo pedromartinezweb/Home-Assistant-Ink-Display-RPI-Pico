@@ -1,8 +1,7 @@
 #!/bin/sh
 set -eu
 
-project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-workspace_dir=$(dirname "$project_dir")
+project_dir=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
 board=${1:-pico_w}
 usb_logs=${EPAPER_USB_LOGS:-ON}
 
@@ -17,7 +16,7 @@ esac
 build_dir="$project_dir/build-$board"
 
 if [ -z "${PICO_SDK_PATH:-}" ]; then
-    sdk_dir="$workspace_dir/.tools/pico-sdk"
+    sdk_dir="$project_dir/.tools/pico-sdk"
     if [ -f "$sdk_dir/external/pico_sdk_import.cmake" ]; then
         PICO_SDK_PATH="$sdk_dir"
         export PICO_SDK_PATH

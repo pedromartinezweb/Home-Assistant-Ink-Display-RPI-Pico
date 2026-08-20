@@ -10,7 +10,7 @@ endif()
 
 include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
-project(epaper_demo C CXX ASM)
+project(ha_ink_display C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -28,29 +28,35 @@ target_include_directories(epaper PUBLIC src)
 target_link_libraries(epaper PUBLIC pico_stdlib hardware_spi)
 target_compile_options(epaper PRIVATE -Wall -Wextra -Werror)
 
-add_library(connectivity STATIC
-    src/wifi_session.c
-    src/home_assistant.c
-)
-
-target_include_directories(connectivity PUBLIC src)
-target_link_libraries(connectivity PUBLIC pico_stdlib pico_cyw43_arch_lwip_poll)
-target_compile_options(connectivity PRIVATE -Wall -Wextra -Werror)
-
-add_executable(epaper_demo
+add_executable(ha_ink_display
     src/main.c
     src/app.c
     src/dashboard.c
+    src/ink_protocol.c
+    src/wifi_session.c
+    src/ink_client.c
+    src/pair_server.c
+    src/device_store.c
 )
 
-target_include_directories(epaper_demo PRIVATE src)
-target_link_libraries(epaper_demo epaper connectivity)
-target_compile_options(epaper_demo PRIVATE -Wall -Wextra -Werror)
+target_include_directories(ha_ink_display PRIVATE src)
+target_link_libraries(ha_ink_display
+    epaper
+    pico_cyw43_arch_lwip_poll
+    pico_lwip_mdns
+    pico_mbedtls_crypto
+    pico_mbedtls_headers
+    pico_flash
+    pico_rand
+    pico_unique_id
+    hardware_flash
+)
+target_compile_options(ha_ink_display PRIVATE -Wall -Wextra -Werror)
 
 if (EPAPER_USB_LOGS)
-    pico_enable_stdio_usb(epaper_demo 1)
+    pico_enable_stdio_usb(ha_ink_display 1)
 else()
-    pico_enable_stdio_usb(epaper_demo 0)
+    pico_enable_stdio_usb(ha_ink_display 0)
 endif()
-pico_enable_stdio_uart(epaper_demo 0)
-pico_add_extra_outputs(epaper_demo)
+pico_enable_stdio_uart(ha_ink_display 0)
+pico_add_extra_outputs(ha_ink_display)

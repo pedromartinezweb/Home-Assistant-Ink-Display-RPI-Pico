@@ -1,0 +1,45 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  native-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: ./test.sh
+
+  firmware:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        board: [pico_w, pico2_w]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi
+      - name: Download Pico SDK
+        run: git clone --branch 2.2.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
+      - name: Create test configuration
+        run: cp src/config_local.example.h src/config_local.h
+      - name: Build firmware
+        env:
+          PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+        run: ./build.sh ${{ matrix.board }}
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration

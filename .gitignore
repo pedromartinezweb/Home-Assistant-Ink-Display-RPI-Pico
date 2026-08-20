@@ -4,3 +4,7 @@ build-test/
 .DS_Store
 firmware/*.uf2
 compile_commands.json
+.tools/
+.venv/
+__pycache__/
+.pytest_cache/

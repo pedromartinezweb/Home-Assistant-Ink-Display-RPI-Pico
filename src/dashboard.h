@@ -22,6 +22,7 @@ typedef struct {
 
 typedef struct {
     int values_milli[DASHBOARD_MAX_ITEMS];
+    bool valid[DASHBOARD_MAX_ITEMS];
     size_t count;
     int hour;
     int minute;

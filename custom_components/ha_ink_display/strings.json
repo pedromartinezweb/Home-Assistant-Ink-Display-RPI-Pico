@@ -1,0 +1,90 @@
+{
+  "title": "Home Assistant Ink Display",
+  "config": {
+    "flow_title": "Ink Display",
+    "step": {
+      "user": {
+        "title": "Find the display manually",
+        "description": "Use this only if Home Assistant did not discover the display automatically.",
+        "data": {
+          "host": "Display IP address or hostname",
+          "port": "Pairing port"
+        }
+      },
+      "pair": {
+        "title": "Pair the display",
+        "description": "Enter the six-digit code currently shown on display {device}.",
+        "data": {
+          "code": "Pairing code"
+        }
+      },
+      "dashboard": {
+        "title": "Configure the dashboard",
+        "description": "Choose the heading, minimum update interval, and number of cells in each row.",
+        "data": {
+          "title": "Display heading",
+          "updated": "Last update label",
+          "interval": "Minimum update interval",
+          "row_one_count": "Items in row 1",
+          "row_two_count": "Items in row 2"
+        }
+      },
+      "item": {
+        "title": "Configure row {row}, item {position}",
+        "description": "Item {position} of {total} in row {row}. Leave the unit empty to use the unit from Home Assistant. Leave the red threshold empty to keep the value black.",
+        "data": {
+          "entity": "Home Assistant entity",
+          "label": "Display label",
+          "unit": "Custom unit",
+          "decimals": "Decimal places",
+          "red_threshold": "Red above"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the display.",
+      "already_paired": "This display is already paired. Run the firmware installer again to reset pairing.",
+      "invalid_code": "The pairing code must contain six digits.",
+      "invalid_dashboard": "The dashboard settings contain unsupported text or values.",
+      "invalid_item": "Check the label, unit, decimal places, and red threshold."
+    },
+    "abort": {
+      "already_configured": "This display is already configured.",
+      "invalid_discovery": "The discovered device did not provide a valid identifier.",
+      "no_internal_url": "Home Assistant does not have an internal URL configured.",
+      "local_http_required": "The Pico currently requires a local Home Assistant URL using HTTP.",
+      "invalid_code": "The display rejected the pairing code. Restart setup and enter the current code.",
+      "cannot_pair": "Home Assistant could not finish pairing with the display."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure the dashboard",
+        "description": "Choose the heading, minimum update interval, and number of cells in each row.",
+        "data": {
+          "title": "Display heading",
+          "updated": "Last update label",
+          "interval": "Minimum update interval",
+          "row_one_count": "Items in row 1",
+          "row_two_count": "Items in row 2"
+        }
+      },
+      "item": {
+        "title": "Configure row {row}, item {position}",
+        "description": "Item {position} of {total} in row {row}. Leave the unit empty to use the unit from Home Assistant. Leave the red threshold empty to keep the value black.",
+        "data": {
+          "entity": "Home Assistant entity",
+          "label": "Display label",
+          "unit": "Custom unit",
+          "decimals": "Decimal places",
+          "red_threshold": "Red above"
+        }
+      }
+    },
+    "error": {
+      "invalid_dashboard": "The dashboard settings contain unsupported text or values.",
+      "invalid_item": "Check the label, unit, decimal places, and red threshold."
+    }
+  }
+}

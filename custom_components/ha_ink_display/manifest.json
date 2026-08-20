@@ -1,0 +1,11 @@
+{
+  "domain": "ha_ink_display",
+  "name": "Home Assistant Ink Display",
+  "codeowners": ["@pedromartinezweb"],
+  "config_flow": true,
+  "documentation": "https://github.com/pedromartinezweb/Home-Assistant-Ink-Display-RPI-Pico",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "version": "0.1.0",
+  "zeroconf": ["_ha-ink._tcp.local."]
+}

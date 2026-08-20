@@ -30,6 +30,7 @@ static DashboardConfig config = {
 
 static DashboardData data = {
     .values_milli = {612000, 18700, 23400, 48000, 14000},
+    .valid = {true, true, true, true, true},
     .count = 5,
     .hour = 10,
     .minute = 24
@@ -82,7 +83,13 @@ int main(void) {
         {.label = "TWO", .unit = "%", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED}
     };
     DashboardConfig two_config = {.title = "HOUSE", .updated = "ACT", .items = two_items, .count = 2};
-    DashboardData two_data = {.values_milli = {-1250, 50000}, .count = 2, .hour = 10, .minute = 24};
+    DashboardData two_data = {
+        .values_milli = {-1250, 50000},
+        .valid = {true, true},
+        .count = 2,
+        .hour = 10,
+        .minute = 24
+    };
     assert(dashboard_config_valid(&two_config));
     assert(dashboard_draw(&next, &two_data, &two_config));
 
@@ -99,6 +106,7 @@ int main(void) {
     DashboardConfig eight_config = {.title = "HOUSE", .updated = "ACT", .items = eight_items, .count = 8};
     DashboardData eight_data = {
         .values_milli = {21000, 50000, 900000, 1230, 22000, 51000, 901000, 4560},
+        .valid = {true, true, true, true, true, true, true, true},
         .count = 8,
         .hour = 10,
         .minute = 24

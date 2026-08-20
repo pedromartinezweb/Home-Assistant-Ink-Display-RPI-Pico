@@ -7,10 +7,8 @@
 typedef struct {
     Epaper epaper;
     Dashboard dashboard;
-    DashboardData data;
-    bool has_reading;
 } App;
 
-void app_run(App *app, const EpdConfig *config);
+void app_run(App *app, const EpdConfig *display);
 
 #endif
