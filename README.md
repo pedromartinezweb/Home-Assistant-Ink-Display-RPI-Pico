@@ -26,7 +26,7 @@ Home Assistant is the main interface for this project. Install the integration b
 5. Search for **Home Assistant Ink Display** and install it.
 6. Restart Home Assistant.
 
-The integration includes its own icon on Home Assistant 2026.3 or newer.
+The integration includes light and dark mode icons on Home Assistant 2026.3 or newer.
 
 ## 2. Manage the display in Home Assistant
 
