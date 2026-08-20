@@ -4,11 +4,17 @@
     "flow_title": "Ink Display",
     "step": {
       "user": {
-        "title": "Find the display manually",
-        "description": "Use this only if Home Assistant did not discover the display automatically.",
+        "title": "Pair the display",
+        "description": "Enter the six-digit code shown on the display. Home Assistant will find it automatically.",
         "data": {
-          "host": "Display IP address or hostname",
-          "port": "Pairing port"
+          "code": "Pairing code"
+        }
+      },
+      "display": {
+        "title": "Choose the display",
+        "description": "More than one unpaired display was found.",
+        "data": {
+          "display": "Display"
         }
       },
       "pair": {
@@ -43,6 +49,7 @@
     },
     "error": {
       "cannot_connect": "Cannot connect to the display.",
+      "cannot_discover": "No unpaired display was found. Confirm that the display is showing a pairing code and is connected to the same network.",
       "already_paired": "This display is already paired. Run the firmware installer again to reset pairing.",
       "invalid_code": "The pairing code must contain six digits.",
       "invalid_dashboard": "The dashboard settings contain unsupported text or values.",

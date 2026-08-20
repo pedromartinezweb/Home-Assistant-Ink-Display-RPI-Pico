@@ -13,6 +13,7 @@ from .client import InkClient, InkClientError, InkCodeError
 from .const import (
     API_PREFIX,
     CONF_DECIMALS,
+    CONF_DISPLAY,
     CONF_DEVICE_ID,
     CONF_ENTITY,
     CONF_INTERVAL,
@@ -35,6 +36,7 @@ from .const import (
     NO_RED,
     PAIR_PORT,
 )
+from .discovery import InkDiscovery, async_discover_displays
 from .protocol import normalize_text
 
 
@@ -185,6 +187,13 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
         self._device_id = ""
         self._name = "Ink Display"
         self._code = 0
+        self._displays: dict[str, InkDiscovery] = {}
+
+    def _select_display(self, display: InkDiscovery) -> None:
+        self._host = display.host
+        self._port = display.port
+        self._device_id = display.device_id
+        self._name = display.label
 
     async def async_step_zeroconf(self, discovery_info):
         self._host = discovery_info.host
@@ -199,37 +208,52 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict | None = None):
         errors = {}
         if user_input is not None:
-            self._host = user_input[CONF_HOST]
-            self._port = int(user_input[CONF_PORT])
-            client = InkClient(
-                async_get_clientsession(self.hass), self._host, self._port
-            )
             try:
-                info = await client.info()
-            except InkClientError:
-                errors["base"] = "cannot_connect"
+                self._code = int(str(user_input["code"]).strip())
+                if self._code < 100000 or self._code > 999999:
+                    raise ValueError
+            except (TypeError, ValueError):
+                errors["base"] = "invalid_code"
             else:
-                if info.paired:
-                    errors["base"] = "already_paired"
+                displays = await async_discover_displays(self.hass)
+                self._displays = {item.device_id: item for item in displays}
+                if not displays:
+                    errors["base"] = "cannot_discover"
+                elif len(displays) > 1:
+                    return await self.async_step_display()
                 else:
-                    self._device_id = info.device_id
-                    self._name = info.name
-                    await self.async_set_unique_id(self._device_id)
+                    self._select_display(displays[0])
+                    await self.async_set_unique_id(
+                        self._device_id, raise_on_progress=False
+                    )
                     self._abort_if_unique_id_configured()
-                    return await self.async_step_pair()
+                    return await self.async_step_dashboard()
         return self.async_show_form(
             step_id="user",
+            data_schema=vol.Schema({vol.Required("code"): selector.TextSelector()}),
+            errors=errors,
+        )
+
+    async def async_step_display(self, user_input: dict | None = None):
+        if user_input is not None:
+            display = self._displays[user_input[CONF_DISPLAY]]
+            self._select_display(display)
+            await self.async_set_unique_id(self._device_id, raise_on_progress=False)
+            self._abort_if_unique_id_configured()
+            return await self.async_step_dashboard()
+        options = [
+            {"value": item.device_id, "label": item.label}
+            for item in self._displays.values()
+        ]
+        return self.async_show_form(
+            step_id="display",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_HOST): selector.TextSelector(),
-                    vol.Required(CONF_PORT, default=PAIR_PORT): selector.NumberSelector(
-                        selector.NumberSelectorConfig(
-                            min=1, max=65535, mode=selector.NumberSelectorMode.BOX
-                        )
-                    ),
+                    vol.Required(CONF_DISPLAY): selector.SelectSelector(
+                        selector.SelectSelectorConfig(options=options)
+                    )
                 }
             ),
-            errors=errors,
         )
 
     async def async_step_pair(self, user_input: dict | None = None):

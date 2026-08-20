@@ -144,12 +144,11 @@ The e-paper display performs a complete cleaning cycle and then shows a six-digi
 After restarting Home Assistant:
 
 1. Open **Settings → Devices & services**.
-2. The discovered **Home Assistant Ink Display** should appear automatically.
-3. Select **Add**.
-4. Enter the six-digit code shown on the e-paper display.
-5. Choose the number of elements in row 1 and row 2.
-6. Choose the minimum update interval. The default is 300 seconds.
-7. Select an entity and display options for every position.
+2. Select **Add integration** and search for **Home Assistant Ink Display**, or select the automatically discovered display.
+3. Enter the six-digit code shown on the e-paper display. Home Assistant locates the display automatically; no IP address is required.
+4. Choose the number of elements in row 1 and row 2.
+5. Choose the minimum update interval. The default is 300 seconds.
+6. Select an entity and display options for every position.
 
 For each position, Home Assistant asks for:
 
@@ -161,7 +160,7 @@ For each position, Home Assistant asks for:
 | Decimal places | Zero, one, or two |
 | Red threshold | Leave empty for black; enter an integer to use red above that value |
 
-If automatic discovery does not appear, select **Add integration**, search for **Home Assistant Ink Display**, and enter the Pico IP address. The default pairing port is `8088`.
+The integration never requires the user to find or enter the Pico IP address. If more than one unpaired display is available, Home Assistant presents a friendly device list after the pairing code.
 
 ## How updates work
 

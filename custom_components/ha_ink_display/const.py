@@ -1,5 +1,6 @@
 DOMAIN = "ha_ink_display"
 CONF_DEVICE_ID = "device_id"
+CONF_DISPLAY = "display"
 CONF_SECRET = "secret"
 CONF_LAYOUT = "layout"
 CONF_TITLE = "title"

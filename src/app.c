@@ -61,11 +61,7 @@ static bool pair_device(App *app,
                         uint32_t provisioning_id,
                         DeviceSettings *settings) {
     uint32_t code = (uint32_t)(get_rand_64() % 900000U) + 100000U;
-    pairing_screen(app, code);
-    printf("[%lu ms] PAIRING_READY device=%s code=%06lu\n",
-           now_ms(),
-           device_id,
-           (unsigned long)code);
+    bool ready = false;
     while (!settings->paired) {
         WifiSession wifi;
         WifiSessionStatus wifi_status = wifi_session_open(&wifi,
@@ -76,6 +72,14 @@ static bool pair_device(App *app,
             printf("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
             sleep_ms(RETRY_SECONDS * 1000U);
             continue;
+        }
+        if (!ready) {
+            pairing_screen(app, code);
+            printf("[%lu ms] PAIRING_READY device=%s code=%06lu\n",
+                   now_ms(),
+                   device_id,
+                   (unsigned long)code);
+            ready = true;
         }
         PairServerConfig config = {
             .device_id = device_id,
