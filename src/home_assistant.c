@@ -328,39 +328,29 @@ static bool parse_time(int *hour, int *minute, int *second) {
 }
 
 HomeAssistantStatus home_assistant_read(const HomeAssistantConfig *config,
+                                        const char *const *entities,
+                                        size_t count,
                                         HomeAssistantReading *reading) {
-    if (config == NULL || reading == NULL || config->host == NULL || config->token == NULL ||
+    if (config == NULL || entities == NULL || reading == NULL ||
+        count == 0 || count > HOME_ASSISTANT_MAX_ENTITIES ||
+        config->host == NULL || config->token == NULL ||
         config->host[0] == '\0' || config->token[0] == '\0') {
         return HOME_ASSISTANT_NOT_CONFIGURED;
     }
 
-    double temperature;
-    double humidity;
-    double co2;
-    double pm25;
-    double external_temperature;
-    HomeAssistantStatus status = read_value(config, config->temperature, &temperature);
-    if (status == HOME_ASSISTANT_OK) {
-        status = read_value(config, config->humidity, &humidity);
-    }
-    if (status == HOME_ASSISTANT_OK) {
-        status = read_value(config, config->co2, &co2);
-    }
-    if (status == HOME_ASSISTANT_OK) {
-        status = read_value(config, config->pm25, &pm25);
-    }
-    if (status == HOME_ASSISTANT_OK) {
-        status = read_value(config, config->external_temperature, &external_temperature);
-    }
-    if (status != HOME_ASSISTANT_OK) {
-        return status;
+    for (size_t index = 0; index < count; ++index) {
+        double value;
+        HomeAssistantStatus status = read_value(config, entities[index], &value);
+        if (status != HOME_ASSISTANT_OK) {
+            return status;
+        }
+        if (value < -2147483.0 || value > 2147483.0) {
+            return HOME_ASSISTANT_RESPONSE_ERROR;
+        }
+        reading->values_milli[index] = round_value(value * 1000.0);
     }
 
-    reading->temperature_tenths = round_value(temperature * 10.0);
-    reading->humidity = round_value(humidity);
-    reading->co2 = round_value(co2);
-    reading->pm25 = round_value(pm25);
-    reading->external_temperature_tenths = round_value(external_temperature * 10.0);
+    reading->count = count;
     if (!parse_time(&reading->hour, &reading->minute, &reading->second)) {
         return HOME_ASSISTANT_RESPONSE_ERROR;
     }

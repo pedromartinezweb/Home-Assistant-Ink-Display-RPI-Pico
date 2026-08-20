@@ -2,41 +2,44 @@
 #define DASHBOARD_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "epd.h"
 
+enum {
+    DASHBOARD_MAX_ITEMS = 8,
+    DASHBOARD_NO_RED = INT32_MAX
+};
+
 typedef struct {
-    int temperature_tenths;
-    int humidity;
-    int co2;
-    int pm25;
-    int external_temperature_tenths;
+    const char *label;
+    const char *unit;
+    uint8_t row;
+    uint8_t decimals;
+    int red_above;
+} DashboardItem;
+
+typedef struct {
+    int values_milli[DASHBOARD_MAX_ITEMS];
+    size_t count;
     int hour;
     int minute;
-} Reading;
+} DashboardData;
+
+typedef struct {
+    const char *title;
+    const char *updated;
+    const DashboardItem *items;
+    size_t count;
+} DashboardConfig;
 
 typedef struct {
     uint8_t black[EPD_BUFFER_SIZE];
     uint8_t red[EPD_BUFFER_SIZE];
 } Dashboard;
 
-typedef struct {
-    const char *title;
-    const char *updated;
-    const char *external_temperature;
-    const char *external_temperature_unit;
-    const char *co2;
-    const char *co2_unit;
-    const char *temperature;
-    const char *temperature_unit;
-    const char *humidity;
-    const char *humidity_unit;
-    const char *pm25;
-    const char *pm25_unit;
-    int co2_red_above;
-} DashboardConfig;
-
-bool dashboard_draw(Dashboard *dashboard, const Reading *reading, const DashboardConfig *config);
+bool dashboard_config_valid(const DashboardConfig *config);
+bool dashboard_draw(Dashboard *dashboard, const DashboardData *data, const DashboardConfig *config);
 
 #endif

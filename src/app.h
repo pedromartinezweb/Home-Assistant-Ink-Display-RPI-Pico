@@ -7,7 +7,7 @@
 typedef struct {
     Epaper epaper;
     Dashboard dashboard;
-    Reading reading;
+    DashboardData data;
     bool has_reading;
 } App;
 

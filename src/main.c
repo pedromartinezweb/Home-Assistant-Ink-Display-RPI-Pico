@@ -2,14 +2,7 @@
 
 #include "app.h"
 
-static App app = {
-    .reading = {
-        .temperature_tenths = 234,
-        .humidity = 48,
-        .co2 = 612,
-        .pm25 = 14
-    }
-};
+static App app;
 
 static const EpdConfig display = {
     .spi = spi0,

@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "config.h"
 #include "home_assistant.h"
@@ -11,20 +12,35 @@ enum {
     STARTUP_RETRY_SECONDS = 30
 };
 
+#define APP_ITEM(entity_value, label_value, unit_value, row_value, decimals_value, red_value) entity_value,
+static const char *const entities[] = {
+    APP_VIEW_ITEMS
+};
+#undef APP_ITEM
+
+#define APP_ITEM(entity_value, label_value, unit_value, row_value, decimals_value, red_value) \
+    {.label = label_value, \
+     .unit = unit_value, \
+     .row = row_value, \
+     .decimals = decimals_value, \
+     .red_above = red_value},
+static const DashboardItem items[] = {
+    APP_VIEW_ITEMS
+};
+#undef APP_ITEM
+
+enum {
+    ITEM_COUNT = sizeof(items) / sizeof(items[0])
+};
+
+_Static_assert((int)ITEM_COUNT <= (int)DASHBOARD_MAX_ITEMS, "Too many dashboard items");
+_Static_assert((int)DASHBOARD_MAX_ITEMS == (int)HOME_ASSISTANT_MAX_ENTITIES, "Entity capacity mismatch");
+
 static const DashboardConfig dashboard_config = {
     .title = APP_UI_TITLE,
     .updated = APP_UI_UPDATED,
-    .external_temperature = APP_UI_EXTERNAL_TEMPERATURE,
-    .external_temperature_unit = APP_UI_EXTERNAL_TEMPERATURE_UNIT,
-    .co2 = APP_UI_CO2,
-    .co2_unit = APP_UI_CO2_UNIT,
-    .temperature = APP_UI_TEMPERATURE,
-    .temperature_unit = APP_UI_TEMPERATURE_UNIT,
-    .humidity = APP_UI_HUMIDITY,
-    .humidity_unit = APP_UI_HUMIDITY_UNIT,
-    .pm25 = APP_UI_PM25,
-    .pm25_unit = APP_UI_PM25_UNIT,
-    .co2_red_above = APP_CO2_RED_ABOVE
+    .items = items,
+    .count = ITEM_COUNT
 };
 
 static uint32_t now_ms(void) {
@@ -38,11 +54,17 @@ static void halt(EpdStatus status) {
     }
 }
 
-static bool home_assistant_configured(void) {
-    return APP_HA_HOST[0] != '\0' && APP_HA_TOKEN[0] != '\0' &&
-           APP_HA_TEMPERATURE[0] != '\0' && APP_HA_HUMIDITY[0] != '\0' &&
-           APP_HA_CO2[0] != '\0' && APP_HA_PM25[0] != '\0' &&
-           APP_HA_EXTERNAL_TEMPERATURE[0] != '\0';
+static bool configured(void) {
+    if (APP_HA_HOST[0] == '\0' || APP_HA_TOKEN[0] == '\0' ||
+        !dashboard_config_valid(&dashboard_config)) {
+        return false;
+    }
+    for (size_t index = 0; index < ITEM_COUNT; ++index) {
+        if (entities[index] == NULL || entities[index][0] == '\0') {
+            return false;
+        }
+    }
+    return true;
 }
 
 static void probe_wifi(void) {
@@ -57,8 +79,8 @@ static void probe_wifi(void) {
     }
 }
 
-static bool fetch_reading(Reading *reading) {
-    if (reading == NULL || !home_assistant_configured()) {
+static bool fetch_data(DashboardData *data) {
+    if (data == NULL || !configured()) {
         return false;
     }
 
@@ -75,15 +97,10 @@ static bool fetch_reading(Reading *reading) {
     HomeAssistantConfig config = {
         .host = APP_HA_HOST,
         .port = APP_HA_PORT,
-        .token = APP_HA_TOKEN,
-        .temperature = APP_HA_TEMPERATURE,
-        .humidity = APP_HA_HUMIDITY,
-        .co2 = APP_HA_CO2,
-        .pm25 = APP_HA_PM25,
-        .external_temperature = APP_HA_EXTERNAL_TEMPERATURE
+        .token = APP_HA_TOKEN
     };
-    HomeAssistantReading value;
-    HomeAssistantStatus status = home_assistant_read(&config, &value);
+    HomeAssistantReading reading;
+    HomeAssistantStatus status = home_assistant_read(&config, entities, ITEM_COUNT, &reading);
     wifi_session_close(&wifi);
 
     if (status != HOME_ASSISTANT_OK) {
@@ -91,27 +108,27 @@ static bool fetch_reading(Reading *reading) {
         return false;
     }
 
-    reading->temperature_tenths = value.temperature_tenths;
-    reading->humidity = value.humidity;
-    reading->co2 = value.co2;
-    reading->pm25 = value.pm25;
-    reading->external_temperature_tenths = value.external_temperature_tenths;
-    reading->hour = value.hour;
-    reading->minute = value.minute;
-    printf("[%lu ms] HOME_ASSISTANT_OK time=%02d:%02d temperature=%d humidity=%d co2=%d pm25=%d external_temperature=%d\n",
+    memcpy(data->values_milli, reading.values_milli, sizeof(int) * ITEM_COUNT);
+    data->count = reading.count;
+    data->hour = reading.hour;
+    data->minute = reading.minute;
+    printf("[%lu ms] HOME_ASSISTANT_OK time=%02d:%02d items=%u\n",
            now_ms(),
-           reading->hour,
-           reading->minute,
-           reading->temperature_tenths,
-           reading->humidity,
-           reading->co2,
-           reading->pm25,
-           reading->external_temperature_tenths);
+           data->hour,
+           data->minute,
+           (unsigned int)data->count);
+    for (size_t index = 0; index < data->count; ++index) {
+        printf("[%lu ms] ITEM index=%u label=%s value_milli=%d\n",
+               now_ms(),
+               (unsigned int)index,
+               items[index].label != NULL ? items[index].label : "",
+               data->values_milli[index]);
+    }
     return true;
 }
 
 static void present(App *app) {
-    if (!dashboard_draw(&app->dashboard, &app->reading, &dashboard_config)) {
+    if (!dashboard_draw(&app->dashboard, &app->data, &dashboard_config)) {
         halt(EPD_ERROR_ARGUMENT);
     }
 
@@ -136,19 +153,21 @@ void app_run(App *app, const EpdConfig *config) {
         halt(EPD_ERROR_ARGUMENT);
     }
 
-    printf("[%lu ms] PRODUCTION_START v26 epaper=ondemand wifi=session ha=rest\n", now_ms());
+    printf("[%lu ms] PRODUCTION_START v27 items=%u epaper=ondemand wifi=session ha=rest\n",
+           now_ms(),
+           (unsigned int)ITEM_COUNT);
     EpdStatus status = epaper_open(&app->epaper, config);
     if (status != EPD_OK) {
         halt(status);
     }
 
-    if (!home_assistant_configured()) {
+    if (!configured()) {
         probe_wifi();
     }
 
     for (;;) {
         uint32_t cycle_start = now_ms();
-        if (fetch_reading(&app->reading)) {
+        if (fetch_data(&app->data)) {
             app->has_reading = true;
         }
         if (app->has_reading) {

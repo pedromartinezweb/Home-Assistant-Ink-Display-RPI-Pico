@@ -13,52 +13,43 @@ static bool pixel(const uint8_t *buffer, int x, int y) {
     return (buffer[index] & mask) == 0;
 }
 
+static DashboardItem items[] = {
+    {.label = "CO2", .unit = "PPM", .row = 1, .decimals = 0, .red_above = 1000},
+    {.label = "EXT TEMP", .unit = "C", .row = 1, .decimals = 1, .red_above = DASHBOARD_NO_RED},
+    {.label = "TEMP", .unit = "C", .row = 2, .decimals = 1, .red_above = DASHBOARD_NO_RED},
+    {.label = "HUM", .unit = "%", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED},
+    {.label = "PM2.5", .unit = "UG/M3", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED}
+};
+
+static DashboardConfig config = {
+    .title = "HOUSE",
+    .updated = "ACT",
+    .items = items,
+    .count = 5
+};
+
+static DashboardData data = {
+    .values_milli = {612000, 18700, 23400, 48000, 14000},
+    .count = 5,
+    .hour = 10,
+    .minute = 24
+};
+
 int main(void) {
     Dashboard dashboard;
-    DashboardConfig config = {
-        .title = "HOUSE",
-        .updated = "ACT",
-        .external_temperature = "EXT TEMP",
-        .external_temperature_unit = "C",
-        .co2 = "CO2",
-        .co2_unit = "PPM",
-        .temperature = "TEMP",
-        .temperature_unit = "C",
-        .humidity = "HUM",
-        .humidity_unit = "%",
-        .pm25 = "PM2.5",
-        .pm25_unit = "UG/M3",
-        .co2_red_above = 1000
-    };
-    Reading valid = {
-        .temperature_tenths = 234,
-        .humidity = 48,
-        .co2 = 612,
-        .pm25 = 14,
-        .external_temperature_tenths = 187,
-        .hour = 10,
-        .minute = 24
-    };
-    Reading invalid = valid;
-    invalid.humidity = 101;
-
-    assert(!dashboard_draw(NULL, &valid, &config));
+    assert(!dashboard_draw(NULL, &data, &config));
     assert(!dashboard_draw(&dashboard, NULL, &config));
-    assert(!dashboard_draw(&dashboard, &valid, NULL));
-    assert(!dashboard_draw(&dashboard, &invalid, &config));
-    assert(dashboard_draw(&dashboard, &valid, &config));
-    assert(pixel(dashboard.black, 20, 24));
-    assert(!pixel(dashboard.red, 20, 24));
+    assert(!dashboard_draw(&dashboard, &data, NULL));
+    assert(dashboard_config_valid(&config));
+    assert(dashboard_draw(&dashboard, &data, &config));
     assert(pixel(dashboard.black, 10, 29));
     assert(!pixel(dashboard.red, 10, 29));
-    assert(pixel(dashboard.black, 132, 40));
-    assert(!pixel(dashboard.red, 132, 40));
-    assert(pixel(dashboard.black, 8, 40));
-    assert(!pixel(dashboard.red, 8, 40));
+    assert(pixel(dashboard.black, 8, 38));
+    assert(!pixel(dashboard.red, 8, 38));
 
     Dashboard next;
-    Reading changed = valid;
-    changed.temperature_tenths = 235;
+    DashboardData changed = data;
+    changed.values_milli[2] = 23500;
     assert(dashboard_draw(&next, &changed, &config));
 
     FrameRegion region;
@@ -69,39 +60,58 @@ int main(void) {
     assert(region.width % 8 == 0);
     assert(!frame_diff_region(next.black, next.red, next.black, next.red, &region));
 
-    Reading next_minute = valid;
+    DashboardData next_minute = data;
     next_minute.minute++;
     assert(dashboard_draw(&next, &next_minute, &config));
     assert(frame_diff_region(dashboard.black, dashboard.red, next.black, next.red, &region));
     assert(region.x < 24);
 
-    invalid = valid;
-    invalid.hour = 24;
-    assert(!dashboard_draw(&dashboard, &invalid, &config));
+    DashboardData threshold = data;
+    threshold.values_milli[0] = 1000000;
+    assert(dashboard_draw(&next, &threshold, &config));
+    assert(pixel(next.black, 8, 38));
+    assert(!pixel(next.red, 8, 38));
 
-    Dashboard customized;
-    config.title = "OFFICE AIR";
-    config.temperature = "ROOM";
-    assert(dashboard_draw(&customized, &valid, &config));
-    assert(frame_diff_region(dashboard.black,
-                             dashboard.red,
-                             customized.black,
-                             customized.red,
-                             &region));
+    threshold.values_milli[0] = 1001000;
+    assert(dashboard_draw(&next, &threshold, &config));
+    assert(!pixel(next.black, 8, 38));
+    assert(pixel(next.red, 8, 38));
 
-    Reading threshold_co2 = valid;
-    threshold_co2.co2 = 1000;
-    assert(dashboard_draw(&customized, &threshold_co2, &config));
-    assert(pixel(customized.black, 8, 40));
-    assert(!pixel(customized.red, 8, 40));
+    DashboardItem two_items[] = {
+        {.label = "ONE", .unit = "", .row = 1, .decimals = 2, .red_above = DASHBOARD_NO_RED},
+        {.label = "TWO", .unit = "%", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED}
+    };
+    DashboardConfig two_config = {.title = "HOUSE", .updated = "ACT", .items = two_items, .count = 2};
+    DashboardData two_data = {.values_milli = {-1250, 50000}, .count = 2, .hour = 10, .minute = 24};
+    assert(dashboard_config_valid(&two_config));
+    assert(dashboard_draw(&next, &two_data, &two_config));
 
-    Reading high_co2 = valid;
-    high_co2.co2 = 1001;
-    assert(dashboard_draw(&customized, &high_co2, &config));
-    assert(!pixel(customized.black, 8, 40));
-    assert(pixel(customized.red, 8, 40));
+    DashboardItem eight_items[] = {
+        {.label = "A", .unit = "C", .row = 1, .decimals = 1, .red_above = DASHBOARD_NO_RED},
+        {.label = "B", .unit = "%", .row = 1, .decimals = 0, .red_above = DASHBOARD_NO_RED},
+        {.label = "C", .unit = "PPM", .row = 1, .decimals = 0, .red_above = 1000},
+        {.label = "D", .unit = "", .row = 1, .decimals = 2, .red_above = DASHBOARD_NO_RED},
+        {.label = "E", .unit = "C", .row = 2, .decimals = 1, .red_above = DASHBOARD_NO_RED},
+        {.label = "F", .unit = "%", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED},
+        {.label = "G", .unit = "PPM", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED},
+        {.label = "H", .unit = "", .row = 2, .decimals = 2, .red_above = DASHBOARD_NO_RED}
+    };
+    DashboardConfig eight_config = {.title = "HOUSE", .updated = "ACT", .items = eight_items, .count = 8};
+    DashboardData eight_data = {
+        .values_milli = {21000, 50000, 900000, 1230, 22000, 51000, 901000, 4560},
+        .count = 8,
+        .hour = 10,
+        .minute = 24
+    };
+    assert(dashboard_config_valid(&eight_config));
+    assert(dashboard_draw(&next, &eight_data, &eight_config));
 
-    config.co2_red_above = -1;
-    assert(!dashboard_draw(&dashboard, &valid, &config));
+    eight_items[4].row = 1;
+    assert(!dashboard_config_valid(&eight_config));
+    assert(!dashboard_draw(&next, &eight_data, &eight_config));
+
+    eight_items[4].row = 2;
+    eight_items[0].label = "TOO LONGXX";
+    assert(!dashboard_config_valid(&eight_config));
     return 0;
 }

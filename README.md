@@ -2,16 +2,18 @@
 
 A low-power environmental dashboard for Home Assistant built with a Raspberry Pi Pico W and a 2.13-inch WeActStudio tri-color e-paper display.
 
-The firmware is written in C using the Raspberry Pi Pico SDK. It does not use Arduino or external graphics libraries. It retrieves indoor temperature, outdoor temperature, humidity, CO2, and PM2.5 values from the local Home Assistant REST API, and the last image remains visible even when the display is unpowered.
+The firmware is written in C using the Raspberry Pi Pico SDK. It does not use Arduino or external graphics libraries. A declarative view maps numeric Home Assistant entities to a dynamic two-row layout, and the last image remains visible even when the display is unpowered.
 
 ![RP2040 Home Assistant e-paper dashboard](docs/rp2040-ink-home-assistant.jpg)
 
 ## Features
 
 - UI optimized for a 250 x 122 pixel black, white, and red display.
+- Two configurable rows with one to four items per row.
+- Any numeric Home Assistant entity can be displayed without changing application code.
+- Automatic column widths and value font scaling.
 - Timestamp of the latest reading received from Home Assistant.
-- Outdoor temperature from a configurable Home Assistant entity.
-- CO2 shown in red only above a configurable threshold.
+- Per-item decimals, label, unit, row, and optional red threshold.
 - Wi-Fi enabled only while retrieving data.
 - SSD1680 deep sleep after each display update.
 - Last valid reading preserved if Wi-Fi or Home Assistant fails.
@@ -75,39 +77,34 @@ Edit `src/config_local.h`:
 #define APP_HA_HOST "192.168.1.20"
 #define APP_HA_PORT 8123
 #define APP_HA_TOKEN "long_lived_access_token"
-#define APP_HA_TEMPERATURE "sensor.temperature"
-#define APP_HA_HUMIDITY "sensor.humidity"
-#define APP_HA_CO2 "sensor.co2"
-#define APP_HA_PM25 "sensor.pm25"
-#define APP_HA_EXTERNAL_TEMPERATURE "sensor.external_temperature"
 #define APP_REFRESH_SECONDS 300
-```
-
-All entity IDs are configured in this single block. They can point to any Home Assistant entities that expose numeric states.
-
-### Display text
-
-Every label shown on the e-paper display is configured in the same file:
-
-```c
 #define APP_UI_TITLE "HOUSE"
 #define APP_UI_UPDATED "ACT"
-#define APP_UI_EXTERNAL_TEMPERATURE "EXT TEMP"
-#define APP_UI_EXTERNAL_TEMPERATURE_UNIT "C"
-#define APP_UI_CO2 "CO2"
-#define APP_UI_CO2_UNIT "PPM"
-#define APP_UI_TEMPERATURE "TEMP"
-#define APP_UI_TEMPERATURE_UNIT "C"
-#define APP_UI_HUMIDITY "HUM"
-#define APP_UI_HUMIDITY_UNIT "%"
-#define APP_UI_PM25 "PM2.5"
-#define APP_UI_PM25_UNIT "UG/M3"
-#define APP_CO2_RED_ABOVE 1000
+
+#define APP_VIEW_ITEMS \
+    APP_ITEM("sensor.co2", "CO2", "PPM", 1, 0, 1000) \
+    APP_ITEM("sensor.external_temperature", "EXT TEMP", "C", 1, 1, DASHBOARD_NO_RED) \
+    APP_ITEM("sensor.temperature", "TEMP", "C", 2, 1, DASHBOARD_NO_RED) \
+    APP_ITEM("sensor.humidity", "HUM", "%", 2, 0, DASHBOARD_NO_RED) \
+    APP_ITEM("sensor.pm25", "PM2.5", "UG/M3", 2, 0, DASHBOARD_NO_RED)
 ```
 
-`APP_CO2_RED_ABOVE` uses a strict comparison: with the default value, readings up to and including `1000 ppm` are black, while readings above `1000 ppm` are red.
+Each `APP_ITEM` defines one cell:
 
-The built-in font supports uppercase `A-Z`, digits, spaces, `.`, `:`, `%`, and `/`. Keep metric labels at 12 characters or fewer. The dashboard validates configuration limits before drawing to prevent text from overflowing the display.
+| Argument | Meaning | Accepted values |
+|---|---|---|
+| 1 | Home Assistant entity ID | Any entity with a numeric state |
+| 2 | Display label | Up to 12 supported characters |
+| 3 | Unit | Up to 5 supported characters, or `""` |
+| 4 | Row | `1` or `2` |
+| 5 | Decimal places | `0`, `1`, or `2` |
+| 6 | Red threshold | Integer threshold or `DASHBOARD_NO_RED` |
+
+Items appear from left to right in declaration order within their row. Each row must contain between one and four items, with a maximum of eight items in total. The renderer calculates column widths and selects the largest font that fits each value.
+
+The red threshold uses a strict comparison. In the example, CO2 readings up to and including `1000 ppm` are black, while readings above `1000 ppm` are red. `DASHBOARD_NO_RED` keeps an item black at every value.
+
+The built-in font supports uppercase `A-Z`, digits, spaces, `-`, `.`, `:`, `%`, and `/`. Labels can use up to 12 characters with one or two columns, 11 with three columns, and 8 with four columns. Invalid row counts, dimensions, labels, units, or decimal settings are rejected before drawing.
 
 Create a token from your Home Assistant profile under **Long-Lived Access Tokens**. Each configured entity must return a numeric state.
 
@@ -185,8 +182,8 @@ The tri-color GDEY0213Z98 supports partial RAM addressing, but its SSD1680 runs 
 | `src/epd.c` | SSD1680 protocol, SPI, reset, `BUSY`, and recovery |
 | `src/epaper.c` | Display state and update selection |
 | `src/frame.c` | Framebuffer, font, and drawing primitives |
-| `src/dashboard.c` | UI composition and reading validation |
-| `src/home_assistant.c` | Fixed-memory REST client with bounded timeouts |
+| `src/dashboard.c` | Dynamic two-row layout, formatting, and validation |
+| `src/home_assistant.c` | Generic fixed-memory entity reader with bounded timeouts |
 | `src/wifi_session.c` | Wi-Fi lifecycle and radio shutdown |
 | `src/app.c` | Orchestration, retry policy, and update schedule |
 | `src/main.c` | Pin configuration and application startup |

@@ -1,25 +1,22 @@
 #ifndef HOME_ASSISTANT_H
 #define HOME_ASSISTANT_H
 
+#include <stddef.h>
 #include <stdint.h>
+
+enum {
+    HOME_ASSISTANT_MAX_ENTITIES = 8
+};
 
 typedef struct {
     const char *host;
     uint16_t port;
     const char *token;
-    const char *temperature;
-    const char *humidity;
-    const char *co2;
-    const char *pm25;
-    const char *external_temperature;
 } HomeAssistantConfig;
 
 typedef struct {
-    int temperature_tenths;
-    int humidity;
-    int co2;
-    int pm25;
-    int external_temperature_tenths;
+    int values_milli[HOME_ASSISTANT_MAX_ENTITIES];
+    size_t count;
     int hour;
     int minute;
     int second;
@@ -33,6 +30,8 @@ typedef enum {
 } HomeAssistantStatus;
 
 HomeAssistantStatus home_assistant_read(const HomeAssistantConfig *config,
+                                        const char *const *entities,
+                                        size_t count,
                                         HomeAssistantReading *reading);
 
 #endif

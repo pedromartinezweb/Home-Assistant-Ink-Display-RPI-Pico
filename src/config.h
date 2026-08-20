@@ -15,26 +15,6 @@
 #define APP_HA_TOKEN ""
 #endif
 
-#ifndef APP_HA_TEMPERATURE
-#define APP_HA_TEMPERATURE ""
-#endif
-
-#ifndef APP_HA_HUMIDITY
-#define APP_HA_HUMIDITY ""
-#endif
-
-#ifndef APP_HA_CO2
-#define APP_HA_CO2 ""
-#endif
-
-#ifndef APP_HA_PM25
-#define APP_HA_PM25 ""
-#endif
-
-#ifndef APP_HA_EXTERNAL_TEMPERATURE
-#define APP_HA_EXTERNAL_TEMPERATURE ""
-#endif
-
 #ifndef APP_REFRESH_SECONDS
 #define APP_REFRESH_SECONDS 300
 #endif
@@ -47,48 +27,13 @@
 #define APP_UI_UPDATED "ACT"
 #endif
 
-#ifndef APP_UI_EXTERNAL_TEMPERATURE
-#define APP_UI_EXTERNAL_TEMPERATURE "EXT TEMP"
-#endif
-
-#ifndef APP_UI_EXTERNAL_TEMPERATURE_UNIT
-#define APP_UI_EXTERNAL_TEMPERATURE_UNIT "C"
-#endif
-
-#ifndef APP_UI_CO2
-#define APP_UI_CO2 "CO2"
-#endif
-
-#ifndef APP_UI_CO2_UNIT
-#define APP_UI_CO2_UNIT "PPM"
-#endif
-
-#ifndef APP_UI_TEMPERATURE
-#define APP_UI_TEMPERATURE "TEMP"
-#endif
-
-#ifndef APP_UI_TEMPERATURE_UNIT
-#define APP_UI_TEMPERATURE_UNIT "C"
-#endif
-
-#ifndef APP_UI_HUMIDITY
-#define APP_UI_HUMIDITY "HUM"
-#endif
-
-#ifndef APP_UI_HUMIDITY_UNIT
-#define APP_UI_HUMIDITY_UNIT "%"
-#endif
-
-#ifndef APP_UI_PM25
-#define APP_UI_PM25 "PM2.5"
-#endif
-
-#ifndef APP_UI_PM25_UNIT
-#define APP_UI_PM25_UNIT "UG/M3"
-#endif
-
-#ifndef APP_CO2_RED_ABOVE
-#define APP_CO2_RED_ABOVE 1000
+#ifndef APP_VIEW_ITEMS
+#define APP_VIEW_ITEMS \
+    APP_ITEM("sensor.co2", "CO2", "PPM", 1, 0, 1000) \
+    APP_ITEM("sensor.external_temperature", "EXT TEMP", "C", 1, 1, DASHBOARD_NO_RED) \
+    APP_ITEM("sensor.temperature", "TEMP", "C", 2, 1, DASHBOARD_NO_RED) \
+    APP_ITEM("sensor.humidity", "HUM", "%", 2, 0, DASHBOARD_NO_RED) \
+    APP_ITEM("sensor.pm25", "PM2.5", "UG/M3", 2, 0, DASHBOARD_NO_RED)
 #endif
 
 #endif
