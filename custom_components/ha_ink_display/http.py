@@ -29,6 +29,8 @@ class InkPollView(HomeAssistantView):
             return web.Response(status=401)
         if revision >= runtime.revision:
             return web.Response(status=204)
+        if len(runtime.layout.get("items", [])) < 2:
+            return web.Response(status=204)
         body, digest = runtime.payload()
         return web.Response(
             body=body,

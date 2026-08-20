@@ -6,7 +6,7 @@
 
 static void frame_test(void) {
     char payload[INK_PAYLOAD_MAX] =
-        "INK1\n"
+        "INK2\n"
         "42\n"
         "300\n"
         "18\n"
@@ -14,8 +14,8 @@ static void frame_test(void) {
         "HOUSE\n"
         "ACT\n"
         "2\n"
-        "1|0|1000|1201000|1|CO2|PPM\n"
-        "2|1|2147483647|23400|1|TEMP|C\n";
+        "1|0|1|1000000|1201000|1|CO2|PPM\n"
+        "2|1|2|5000|23400|1||~C\n";
     InkFrame frame;
     assert(ink_protocol_frame_parse(payload, strlen(payload), &frame));
     assert(frame.revision == 42);
@@ -23,8 +23,10 @@ static void frame_test(void) {
     assert(frame.data.count == 2);
     assert(frame.data.values_milli[0] == 1201000);
     assert(frame.data.valid[0]);
-    assert(strcmp(frame.config.items[1].label, "TEMP") == 0);
+    assert(strcmp(frame.config.items[1].label, "") == 0);
+    assert(strcmp(frame.config.items[1].unit, "~C") == 0);
     assert(frame.config.items[1].row == 2);
+    assert(frame.config.items[1].alert_mode == DASHBOARD_ALERT_BELOW);
 }
 
 static void invalid_frame_test(void) {

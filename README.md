@@ -10,7 +10,10 @@ No Arduino knowledge, C editing, Home Assistant token, or fixed entity list is r
 
 - Shows one to four Home Assistant entities in each of two rows.
 - Supports up to eight entities in total.
-- Lets you configure entities, labels, units, decimal places, red thresholds, and positions from Home Assistant.
+- Provides a visual Home Assistant editor with drag-and-drop ordering.
+- Lets you edit entities, optional labels, units, decimal places, and red alerts at any time.
+- Supports red alerts above or below a configured value.
+- Supports `º` and `°` in labels and units.
 - Automatically resizes columns and values to fit the selected layout.
 - Discovers the display automatically on the local network.
 - Pairs using a six-digit code shown on the e-paper display.
@@ -146,19 +149,23 @@ After restarting Home Assistant:
 1. Open **Settings → Devices & services**.
 2. Select **Add integration** and search for **Home Assistant Ink Display**, or select the automatically discovered display.
 3. Enter the six-digit code shown on the e-paper display. Home Assistant locates the display automatically; no IP address is required.
-4. Choose the number of elements in row 1 and row 2.
-5. Choose the minimum update interval. The default is 300 seconds.
-6. Select an entity and display options for every position.
+4. Open **Ink Display** in the Home Assistant sidebar.
+5. Add at least one item to each row.
+6. Drag items to change their order or move them between rows.
+7. Select **Save changes**. The default update interval is 300 seconds.
 
 For each position, Home Assistant asks for:
 
 | Setting | Meaning |
 |---|---|
 | Entity | The Home Assistant value to display |
-| Label | Short uppercase name shown on the display |
+| Label | Optional short uppercase name shown on the display |
 | Custom unit | Leave empty to use the entity unit automatically |
 | Decimal places | Zero, one, or two |
-| Red threshold | Leave empty for black; enter an integer to use red above that value |
+| Red alert | Never, when the value is above, or when the value is below |
+| Alert threshold | Numeric value that activates the selected red alert |
+
+The header always shows `ACT HH:MM` on the right. `ACT` is fixed and means the time of the last data update.
 
 The integration never requires the user to find or enter the Pico IP address. If more than one unpaired display is available, Home Assistant presents a friendly device list after the pairing code.
 
@@ -177,11 +184,13 @@ The minimum interval protects the tri-color e-paper panel from continuous update
 
 ## Change the layout later
 
-Open **Settings → Devices & services → Home Assistant Ink Display**, select **Configure**, and repeat the layout steps. The next Pico check receives the new layout automatically; no new UF2 is needed.
+Open **Ink Display** in the Home Assistant sidebar. Add, remove, edit, or drag items and select **Save changes**. The next Pico check receives the new layout automatically; no new UF2 is needed.
 
 ## Pair again or change Wi-Fi
 
-Run the setup tool again and install the newly generated UF2. Each build receives a new provisioning identifier, clears the previous pairing, and shows a new code.
+To clear only the Home Assistant pairing, keep `BOOTSEL` pressed for five seconds while the firmware is running. The Pico erases its device secret, restarts, and shows a new pairing code. A short press does nothing. Add **Home Assistant Ink Display** again and enter the new code; Home Assistant reconnects the existing device and preserves its layout.
+
+To change Wi-Fi, run the setup tool again and install the newly generated UF2. Each build receives a new provisioning identifier and clears the previous pairing.
 
 ## Common problems
 
@@ -192,6 +201,7 @@ Run the setup tool again and install the newly generated UF2. Each build receive
 | The display never changes | Check every wire, 3.3 V power, and the `SB1`/`SB2` SPI setting |
 | A pairing code appears but Home Assistant finds nothing | Confirm both devices use the same LAN and that mDNS is not blocked |
 | Pairing fails | Enter the current six-digit code before restarting the Pico |
+| The Ink Display editor is missing | Update the integration through HACS and restart Home Assistant |
 | Home Assistant reports that local HTTP is required | Configure an internal Home Assistant URL using local HTTP |
 | A cell shows `N/A` | The entity is unavailable, unknown, or does not contain a numeric state |
 | The screen flashes several colors | This is the normal full waveform of the tri-color e-paper panel |

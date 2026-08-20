@@ -14,11 +14,11 @@ static bool pixel(const uint8_t *buffer, int x, int y) {
 }
 
 static DashboardItem items[] = {
-    {.label = "CO2", .unit = "PPM", .row = 1, .decimals = 0, .red_above = 1000},
-    {.label = "EXT TEMP", .unit = "C", .row = 1, .decimals = 1, .red_above = DASHBOARD_NO_RED},
-    {.label = "TEMP", .unit = "C", .row = 2, .decimals = 1, .red_above = DASHBOARD_NO_RED},
-    {.label = "HUM", .unit = "%", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED},
-    {.label = "PM2.5", .unit = "UG/M3", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED}
+    {.label = "CO2", .unit = "PPM", .row = 1, .decimals = 0, .alert_mode = DASHBOARD_ALERT_ABOVE, .alert_threshold_milli = 1000000},
+    {.label = "EXT TEMP", .unit = "~C", .row = 1, .decimals = 1, .alert_mode = DASHBOARD_ALERT_OFF},
+    {.label = "TEMP", .unit = "C", .row = 2, .decimals = 1, .alert_mode = DASHBOARD_ALERT_BELOW, .alert_threshold_milli = 5000},
+    {.label = "HUM", .unit = "%", .row = 2, .decimals = 0, .alert_mode = DASHBOARD_ALERT_OFF},
+    {.label = "PM2.5", .unit = "UG/M3", .row = 2, .decimals = 0, .alert_mode = DASHBOARD_ALERT_OFF}
 };
 
 static DashboardConfig config = {
@@ -78,9 +78,14 @@ int main(void) {
     assert(!pixel(next.black, 8, 38));
     assert(pixel(next.red, 8, 38));
 
+    threshold = data;
+    threshold.values_milli[2] = 4900;
+    assert(dashboard_draw(&next, &threshold, &config));
+    assert(pixel(next.red, 8, 84));
+
     DashboardItem two_items[] = {
-        {.label = "ONE", .unit = "", .row = 1, .decimals = 2, .red_above = DASHBOARD_NO_RED},
-        {.label = "TWO", .unit = "%", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED}
+        {.label = "", .unit = "", .row = 1, .decimals = 2, .alert_mode = DASHBOARD_ALERT_OFF},
+        {.label = "TWO", .unit = "%", .row = 2, .decimals = 0, .alert_mode = DASHBOARD_ALERT_OFF}
     };
     DashboardConfig two_config = {.title = "HOUSE", .updated = "ACT", .items = two_items, .count = 2};
     DashboardData two_data = {
@@ -94,14 +99,14 @@ int main(void) {
     assert(dashboard_draw(&next, &two_data, &two_config));
 
     DashboardItem eight_items[] = {
-        {.label = "A", .unit = "C", .row = 1, .decimals = 1, .red_above = DASHBOARD_NO_RED},
-        {.label = "B", .unit = "%", .row = 1, .decimals = 0, .red_above = DASHBOARD_NO_RED},
-        {.label = "C", .unit = "PPM", .row = 1, .decimals = 0, .red_above = 1000},
-        {.label = "D", .unit = "", .row = 1, .decimals = 2, .red_above = DASHBOARD_NO_RED},
-        {.label = "E", .unit = "C", .row = 2, .decimals = 1, .red_above = DASHBOARD_NO_RED},
-        {.label = "F", .unit = "%", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED},
-        {.label = "G", .unit = "PPM", .row = 2, .decimals = 0, .red_above = DASHBOARD_NO_RED},
-        {.label = "H", .unit = "", .row = 2, .decimals = 2, .red_above = DASHBOARD_NO_RED}
+        {.label = "A", .unit = "C", .row = 1, .decimals = 1, .alert_mode = DASHBOARD_ALERT_OFF},
+        {.label = "B", .unit = "%", .row = 1, .decimals = 0, .alert_mode = DASHBOARD_ALERT_OFF},
+        {.label = "C", .unit = "PPM", .row = 1, .decimals = 0, .alert_mode = DASHBOARD_ALERT_ABOVE, .alert_threshold_milli = 1000000},
+        {.label = "D", .unit = "", .row = 1, .decimals = 2, .alert_mode = DASHBOARD_ALERT_OFF},
+        {.label = "E", .unit = "C", .row = 2, .decimals = 1, .alert_mode = DASHBOARD_ALERT_OFF},
+        {.label = "F", .unit = "%", .row = 2, .decimals = 0, .alert_mode = DASHBOARD_ALERT_OFF},
+        {.label = "G", .unit = "PPM", .row = 2, .decimals = 0, .alert_mode = DASHBOARD_ALERT_OFF},
+        {.label = "H", .unit = "", .row = 2, .decimals = 2, .alert_mode = DASHBOARD_ALERT_OFF}
     };
     DashboardConfig eight_config = {.title = "HOUSE", .updated = "ACT", .items = eight_items, .count = 8};
     DashboardData eight_data = {

@@ -13,6 +13,6 @@ typedef struct {
     DeviceSettings *settings;
 } PairServerConfig;
 
-bool pair_server_run(const PairServerConfig *config, uint32_t timeout_ms);
+bool pair_server_run(const PairServerConfig *config);
 
 #endif

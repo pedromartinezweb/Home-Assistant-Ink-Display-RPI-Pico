@@ -26,10 +26,9 @@
       },
       "dashboard": {
         "title": "Configure the dashboard",
-        "description": "Choose the heading, minimum update interval, and number of cells in each row.",
+        "description": "Choose the heading, minimum update interval, and number of cells in each row. ACT and the last update time are fixed.",
         "data": {
           "title": "Display heading",
-          "updated": "Last update label",
           "interval": "Minimum update interval",
           "row_one_count": "Items in row 1",
           "row_two_count": "Items in row 2"
@@ -37,23 +36,24 @@
       },
       "item": {
         "title": "Configure row {row}, item {position}",
-        "description": "Item {position} of {total} in row {row}. Leave the unit empty to use the unit from Home Assistant. Leave the red threshold empty to keep the value black.",
+        "description": "Item {position} of {total} in row {row}. The label may be empty. Leave the unit empty to use the Home Assistant unit.",
         "data": {
           "entity": "Home Assistant entity",
-          "label": "Display label",
+          "label": "Display label (optional)",
           "unit": "Custom unit",
           "decimals": "Decimal places",
-          "red_threshold": "Red above"
+          "alert_mode": "Red alert",
+          "alert_threshold": "Alert threshold"
         }
       }
     },
     "error": {
       "cannot_connect": "Cannot connect to the display.",
       "cannot_discover": "No unpaired display was found. Confirm that the display is showing a pairing code and is connected to the same network.",
-      "already_paired": "This display is already paired. Run the firmware installer again to reset pairing.",
+      "already_paired": "This display is already paired. Hold BOOTSEL for five seconds while it is running to reset pairing.",
       "invalid_code": "The pairing code must contain six digits.",
       "invalid_dashboard": "The dashboard settings contain unsupported text or values.",
-      "invalid_item": "Check the label, unit, decimal places, and red threshold."
+      "invalid_item": "Check the entity, label, unit, decimal places, and alert settings."
     },
     "abort": {
       "already_configured": "This display is already configured.",
@@ -61,17 +61,17 @@
       "no_internal_url": "Home Assistant does not have an internal URL configured.",
       "local_http_required": "The Pico currently requires a local Home Assistant URL using HTTP.",
       "invalid_code": "The display rejected the pairing code. Restart setup and enter the current code.",
-      "cannot_pair": "Home Assistant could not finish pairing with the display."
+      "cannot_pair": "Home Assistant could not finish pairing with the display.",
+      "reconfigured": "The display was paired again and its existing layout was preserved."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Configure the dashboard",
-        "description": "Choose the heading, minimum update interval, and number of cells in each row.",
+        "description": "Open the [visual Ink Display editor](/ink-display) to drag, add, remove, and edit items. This form remains available as a fallback.",
         "data": {
           "title": "Display heading",
-          "updated": "Last update label",
           "interval": "Minimum update interval",
           "row_one_count": "Items in row 1",
           "row_two_count": "Items in row 2"
@@ -79,19 +79,20 @@
       },
       "item": {
         "title": "Configure row {row}, item {position}",
-        "description": "Item {position} of {total} in row {row}. Leave the unit empty to use the unit from Home Assistant. Leave the red threshold empty to keep the value black.",
+        "description": "Item {position} of {total} in row {row}. The label may be empty. Leave the unit empty to use the Home Assistant unit.",
         "data": {
           "entity": "Home Assistant entity",
-          "label": "Display label",
+          "label": "Display label (optional)",
           "unit": "Custom unit",
           "decimals": "Decimal places",
-          "red_threshold": "Red above"
+          "alert_mode": "Red alert",
+          "alert_threshold": "Alert threshold"
         }
       }
     },
     "error": {
       "invalid_dashboard": "The dashboard settings contain unsupported text or values.",
-      "invalid_item": "Check the label, unit, decimal places, and red threshold."
+      "invalid_item": "Check the entity, label, unit, decimal places, and alert settings."
     }
   }
 }

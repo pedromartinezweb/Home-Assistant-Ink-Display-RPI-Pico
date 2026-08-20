@@ -36,10 +36,11 @@ bool dashboard_config_valid(const DashboardConfig *config) {
 
     for (size_t index = 0; index < config->count; ++index) {
         const DashboardItem *item = &config->items[index];
-        if (!text_valid(item->label, 12, false) ||
+        if (!text_valid(item->label, 12, true) ||
             !text_valid(item->unit, 5, true) ||
             (item->row != 1 && item->row != 2) ||
-            item->decimals > 2) {
+            item->decimals > 2 ||
+            item->alert_mode > DASHBOARD_ALERT_BELOW) {
             return false;
         }
     }
@@ -115,8 +116,13 @@ static int value_scale(const char *value, const char *unit, int width, int max_s
 }
 
 static bool use_red(const DashboardItem *item, int milli) {
-    return item->red_above != DASHBOARD_NO_RED &&
-           (int64_t)milli > (int64_t)item->red_above * 1000;
+    if (item->alert_mode == DASHBOARD_ALERT_ABOVE) {
+        return milli > item->alert_threshold_milli;
+    }
+    if (item->alert_mode == DASHBOARD_ALERT_BELOW) {
+        return milli < item->alert_threshold_milli;
+    }
+    return false;
 }
 
 static void draw_header(Dashboard *dashboard, const DashboardData *data, const DashboardConfig *config) {

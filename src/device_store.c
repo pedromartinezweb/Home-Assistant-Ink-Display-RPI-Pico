@@ -32,6 +32,10 @@ typedef struct {
     uint8_t page[FLASH_PAGE_SIZE];
 } StoreWrite;
 
+typedef struct {
+    uint32_t offset;
+} StoreErase;
+
 static uint32_t checksum(const uint8_t *data, size_t size) {
     uint32_t value = 2166136261U;
     for (size_t index = 0; index < size; ++index) {
@@ -65,6 +69,11 @@ static void __not_in_flash_func(write_record)(void *context) {
     StoreWrite *write = context;
     flash_range_erase(write->offset, FLASH_SECTOR_SIZE);
     flash_range_program(write->offset, write->page, sizeof(write->page));
+}
+
+static void __not_in_flash_func(erase_record)(void *context) {
+    StoreErase *erase = context;
+    flash_range_erase(erase->offset, FLASH_SECTOR_SIZE);
 }
 
 void device_store_load(uint32_t provisioning_id, DeviceSettings *settings) {
@@ -112,4 +121,12 @@ bool device_store_pair(uint32_t provisioning_id,
     }
     device_store_load(provisioning_id, settings);
     return settings->paired;
+}
+
+bool device_store_reset(void) {
+    StoreErase erase = {.offset = store_offset()};
+    if (flash_safe_execute(erase_record, &erase, 5000) != PICO_OK) {
+        return false;
+    }
+    return stored()->magic != STORE_MAGIC;
 }

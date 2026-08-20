@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "frame.h"
+#include "factory_reset.h"
 #include "ink_client.h"
 #include "pair_server.h"
 #include "pico/rand.h"
@@ -13,7 +14,6 @@
 
 enum {
     WIFI_TIMEOUT_MS = 20000,
-    PAIR_WINDOW_MS = 300000,
     RETRY_SECONDS = 60,
     DEFAULT_INTERVAL_SECONDS = 300
 };
@@ -70,7 +70,7 @@ static bool pair_device(App *app,
                                                            WIFI_TIMEOUT_MS);
         if (wifi_status != WIFI_SESSION_OK) {
             printf("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
-            sleep_ms(RETRY_SECONDS * 1000U);
+            factory_reset_sleep(RETRY_SECONDS * 1000U);
             continue;
         }
         if (!ready) {
@@ -87,7 +87,7 @@ static bool pair_device(App *app,
             .provisioning_id = provisioning_id,
             .settings = settings
         };
-        bool paired = pair_server_run(&config, PAIR_WINDOW_MS);
+        bool paired = pair_server_run(&config);
         wifi_session_close(&wifi);
         if (paired) {
             printf("[%lu ms] PAIRING_OK device=%s\n", now_ms(), device_id);
@@ -134,7 +134,7 @@ void app_run(App *app, const EpdConfig *display) {
                                                            WIFI_TIMEOUT_MS);
         if (wifi_status != WIFI_SESSION_OK) {
             printf("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
-            sleep_ms(RETRY_SECONDS * 1000U);
+            factory_reset_sleep(RETRY_SECONDS * 1000U);
             continue;
         }
 
@@ -163,6 +163,6 @@ void app_run(App *app, const EpdConfig *display) {
             printf("[%lu ms] POLL_ERROR status=%d\n", now_ms(), client_status);
             interval_seconds = RETRY_SECONDS;
         }
-        sleep_ms(interval_seconds * 1000U);
+        factory_reset_sleep(interval_seconds * 1000U);
     }
 }

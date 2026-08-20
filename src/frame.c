@@ -54,6 +54,7 @@ static const uint8_t colon[5] = {0x00, 0x36, 0x36, 0x00, 0x00};
 static const uint8_t percent[5] = {0x63, 0x13, 0x08, 0x64, 0x63};
 static const uint8_t slash[5] = {0x20, 0x10, 0x08, 0x04, 0x02};
 static const uint8_t minus[5] = {0x08, 0x08, 0x08, 0x08, 0x08};
+static const uint8_t degree[5] = {0x06, 0x09, 0x09, 0x06, 0x00};
 
 static const uint8_t *glyph(char value) {
     if (value >= 'A' && value <= 'Z') {
@@ -76,6 +77,9 @@ static const uint8_t *glyph(char value) {
     }
     if (value == '-') {
         return minus;
+    }
+    if (value == '~') {
+        return degree;
     }
     return blank;
 }

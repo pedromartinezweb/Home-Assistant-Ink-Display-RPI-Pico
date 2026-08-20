@@ -11,7 +11,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import InkClient, InkClientError, InkCodeError
 from .const import (
+    ALERT_ABOVE,
+    ALERT_BELOW,
+    ALERT_OFF,
     API_PREFIX,
+    CONF_ALERT_MODE,
+    CONF_ALERT_THRESHOLD,
     CONF_DECIMALS,
     CONF_DISPLAY,
     CONF_DEVICE_ID,
@@ -20,23 +25,20 @@ from .const import (
     CONF_ITEMS,
     CONF_LABEL,
     CONF_LAYOUT,
-    CONF_RED_THRESHOLD,
     CONF_ROW_ONE_COUNT,
     CONF_ROW_TWO_COUNT,
     CONF_SECRET,
     CONF_TITLE,
     CONF_UNIT,
-    CONF_UPDATED,
     DEFAULT_INTERVAL,
     DEFAULT_TITLE,
-    DEFAULT_UPDATED,
     DOMAIN,
     MAX_INTERVAL,
     MIN_INTERVAL,
-    NO_RED,
     PAIR_PORT,
 )
 from .discovery import InkDiscovery, async_discover_displays
+from .layout import empty_layout, normalize_item, normalize_layout
 from .protocol import normalize_text
 
 
@@ -46,9 +48,6 @@ def dashboard_schema(defaults: dict | None = None) -> vol.Schema:
         {
             vol.Required(
                 CONF_TITLE, default=source.get(CONF_TITLE, DEFAULT_TITLE)
-            ): selector.TextSelector(),
-            vol.Required(
-                CONF_UPDATED, default=source.get(CONF_UPDATED, DEFAULT_UPDATED)
             ): selector.TextSelector(),
             vol.Required(
                 CONF_INTERVAL,
@@ -84,6 +83,8 @@ def dashboard_schema(defaults: dict | None = None) -> vol.Schema:
 
 def item_schema(defaults: dict | None = None) -> vol.Schema:
     source = defaults or {}
+    if source:
+        source = normalize_item(source)
     fields: dict = {}
     entity = source.get(CONF_ENTITY)
     entity_key = (
@@ -92,7 +93,7 @@ def item_schema(defaults: dict | None = None) -> vol.Schema:
         else vol.Required(CONF_ENTITY)
     )
     fields[entity_key] = selector.EntitySelector()
-    fields[vol.Required(CONF_LABEL, default=source.get(CONF_LABEL, "VALUE"))] = (
+    fields[vol.Optional(CONF_LABEL, default=source.get(CONF_LABEL, ""))] = (
         selector.TextSelector()
     )
     fields[vol.Optional(CONF_UNIT, default=source.get(CONF_UNIT, ""))] = (
@@ -107,10 +108,24 @@ def item_schema(defaults: dict | None = None) -> vol.Schema:
             )
         )
     )
-    threshold = source.get(CONF_RED_THRESHOLD, "")
-    if threshold == NO_RED:
-        threshold = ""
-    fields[vol.Optional(CONF_RED_THRESHOLD, default=str(threshold))] = (
+    fields[
+        vol.Required(CONF_ALERT_MODE, default=source.get(CONF_ALERT_MODE, ALERT_OFF))
+    ] = selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=[
+                {"value": ALERT_OFF, "label": "Never"},
+                {"value": ALERT_ABOVE, "label": "When value is above"},
+                {"value": ALERT_BELOW, "label": "When value is below"},
+            ],
+            mode=selector.SelectSelectorMode.DROPDOWN,
+        )
+    )
+    fields[
+        vol.Optional(
+            CONF_ALERT_THRESHOLD,
+            default=str(source.get(CONF_ALERT_THRESHOLD, "")),
+        )
+    ] = (
         selector.TextSelector()
     )
     return vol.Schema(fields)
@@ -119,7 +134,6 @@ def item_schema(defaults: dict | None = None) -> vol.Schema:
 def clean_dashboard(data: dict) -> dict:
     return {
         CONF_TITLE: normalize_text(str(data[CONF_TITLE]), 24),
-        CONF_UPDATED: normalize_text(str(data[CONF_UPDATED]), 8),
         CONF_INTERVAL: int(data[CONF_INTERVAL]),
         CONF_ROW_ONE_COUNT: int(data[CONF_ROW_ONE_COUNT]),
         CONF_ROW_TWO_COUNT: int(data[CONF_ROW_TWO_COUNT]),
@@ -128,15 +142,7 @@ def clean_dashboard(data: dict) -> dict:
 
 
 def clean_item(data: dict, row: int) -> dict:
-    threshold = str(data.get(CONF_RED_THRESHOLD, "")).strip()
-    return {
-        CONF_ENTITY: data[CONF_ENTITY],
-        CONF_LABEL: normalize_text(str(data[CONF_LABEL]), 12),
-        CONF_UNIT: normalize_text(str(data.get(CONF_UNIT, "")), 5, True),
-        CONF_DECIMALS: int(data[CONF_DECIMALS]),
-        CONF_RED_THRESHOLD: NO_RED if not threshold else int(threshold),
-        "row": row,
-    }
+    return normalize_item({**data, "row": row})
 
 
 class LayoutMixin:
@@ -190,6 +196,7 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
         self._name = "Ink Display"
         self._code = 0
         self._displays: dict[str, InkDiscovery] = {}
+        self._existing_entry = None
 
     def _select_display(self, display: InkDiscovery) -> None:
         self._host = display.host
@@ -197,14 +204,24 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
         self._device_id = display.device_id
         self._name = display.label
 
+    async def _set_device_id(self) -> None:
+        await self.async_set_unique_id(self._device_id, raise_on_progress=False)
+        self._existing_entry = next(
+            (
+                entry
+                for entry in self.hass.config_entries.async_entries(DOMAIN)
+                if entry.unique_id == self._device_id
+            ),
+            None,
+        )
+
     async def async_step_zeroconf(self, discovery_info):
         self._host = discovery_info.host
         self._port = discovery_info.port
         self._device_id = str(discovery_info.properties.get("id", ""))
         if not self._device_id:
             return self.async_abort(reason="invalid_discovery")
-        await self.async_set_unique_id(self._device_id)
-        self._abort_if_unique_id_configured()
+        await self._set_device_id()
         return await self.async_step_pair()
 
     async def async_step_user(self, user_input: dict | None = None):
@@ -225,11 +242,9 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
                     return await self.async_step_display()
                 else:
                     self._select_display(displays[0])
-                    await self.async_set_unique_id(
-                        self._device_id, raise_on_progress=False
-                    )
-                    self._abort_if_unique_id_configured()
-                    return await self.async_step_dashboard()
+                    await self._set_device_id()
+                    self._layout = empty_layout()
+                    return await self._layout_complete()
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({vol.Required("code"): selector.TextSelector()}),
@@ -240,9 +255,9 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             display = self._displays[user_input[CONF_DISPLAY]]
             self._select_display(display)
-            await self.async_set_unique_id(self._device_id, raise_on_progress=False)
-            self._abort_if_unique_id_configured()
-            return await self.async_step_dashboard()
+            await self._set_device_id()
+            self._layout = empty_layout()
+            return await self._layout_complete()
         options = [
             {"value": item.device_id, "label": item.label}
             for item in self._displays.values()
@@ -268,7 +283,8 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
             except (TypeError, ValueError):
                 errors["base"] = "invalid_code"
             else:
-                return await self.async_step_dashboard()
+                self._layout = empty_layout()
+                return await self._layout_complete()
         return self.async_show_form(
             step_id="pair",
             data_schema=vol.Schema({vol.Required("code"): selector.TextSelector()}),
@@ -324,15 +340,28 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="invalid_code")
         except InkClientError:
             return self.async_abort(reason="cannot_pair")
+        data = {
+            CONF_DEVICE_ID: self._device_id,
+            CONF_HOST: self._host,
+            CONF_PORT: self._port,
+            CONF_SECRET: secret.hex(),
+            CONF_LAYOUT: self._layout,
+        }
+        if self._existing_entry is not None:
+            preserved = (
+                self._existing_entry.options
+                or self._existing_entry.data.get(CONF_LAYOUT)
+                or empty_layout()
+            )
+            data[CONF_LAYOUT] = preserved
+            self.hass.config_entries.async_update_entry(
+                self._existing_entry,
+                data=data,
+            )
+            await self.hass.config_entries.async_reload(self._existing_entry.entry_id)
+            return self.async_abort(reason="reconfigured")
         return self.async_create_entry(
-            title=f"Home Assistant Ink Display {self._device_id[-6:]}",
-            data={
-                CONF_DEVICE_ID: self._device_id,
-                CONF_HOST: self._host,
-                CONF_PORT: self._port,
-                CONF_SECRET: secret.hex(),
-                CONF_LAYOUT: self._layout,
-            },
+            title=f"Home Assistant Ink Display {self._device_id[-6:]}", data=data
         )
 
     @staticmethod
@@ -343,7 +372,12 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
 class InkOptionsFlow(LayoutMixin, config_entries.OptionsFlow):
     def __init__(self, entry) -> None:
         self._entry = entry
-        self._source = dict(entry.options or entry.data[CONF_LAYOUT])
+        self._source = normalize_layout(
+            entry.options or entry.data[CONF_LAYOUT], allow_empty=True
+        )
+        if not self._source[CONF_ITEMS]:
+            self._source[CONF_ROW_ONE_COUNT] = 2
+            self._source[CONF_ROW_TWO_COUNT] = 2
 
     async def async_step_init(self, user_input: dict | None = None):
         errors = {}

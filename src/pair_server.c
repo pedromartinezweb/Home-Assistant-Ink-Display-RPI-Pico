@@ -53,9 +53,11 @@ static void respond(PairServer *server, const char *status, const char *type, co
                           body == NULL ? "" : body);
     if (length <= 0 || (size_t)length >= sizeof(response) ||
         tcp_write(server->client, response, (u16_t)length, TCP_WRITE_FLAG_COPY) != ERR_OK) {
+        printf("PAIR_HTTP response=write_error\n");
         close_client(server);
         return;
     }
+    printf("PAIR_HTTP response=%s\n", status);
     tcp_output(server->client);
     close_client(server);
 }
@@ -87,6 +89,7 @@ static void handle_request(PairServer *server) {
     body += 4;
 
     if (strncmp(server->request, "GET /v1/info ", 13) == 0) {
+        printf("PAIR_HTTP request=info\n");
         char json[256];
         snprintf(json,
                  sizeof(json),
@@ -97,6 +100,7 @@ static void handle_request(PairServer *server) {
         return;
     }
     if (strncmp(server->request, "POST /v1/pair ", 14) != 0 || expected == 0) {
+        printf("PAIR_HTTP request=unknown\n");
         respond(server, "404 Not Found", "text/plain", "Not found");
         return;
     }
@@ -106,16 +110,19 @@ static void handle_request(PairServer *server) {
     InkPairRequest request;
     if (!ink_protocol_pair_parse(payload, expected, &request) ||
         request.code != server->config.code) {
+        printf("PAIR_HTTP request=pair result=invalid_code\n");
         respond(server, "403 Forbidden", "text/plain", "Invalid code");
         return;
     }
     if (!device_store_pair(server->config.provisioning_id,
                            &request,
                            server->config.settings)) {
+        printf("PAIR_HTTP request=pair result=storage_error\n");
         respond(server, "500 Internal Server Error", "text/plain", "Storage error");
         return;
     }
     server->complete = true;
+    printf("PAIR_HTTP request=pair result=ok\n");
     respond(server, "204 No Content", "text/plain", NULL);
 }
 
@@ -154,6 +161,7 @@ static err_t accept_client(void *context, struct tcp_pcb *client, err_t error) {
         return ERR_ABRT;
     }
     server->client = client;
+    printf("PAIR_HTTP connection=accepted\n");
     server->request_length = 0;
     tcp_arg(client, server);
     tcp_recv(client, receive);
@@ -188,11 +196,12 @@ static bool publish(PairServer *server) {
         return false;
     }
     mdns_resp_announce(netif_default);
+    printf("PAIR_MDNS state=published port=%d\n", PAIR_PORT);
     return true;
 }
 
-bool pair_server_run(const PairServerConfig *config, uint32_t timeout_ms) {
-    if (config == NULL || config->device_id == NULL || config->settings == NULL || timeout_ms == 0) {
+bool pair_server_run(const PairServerConfig *config) {
+    if (config == NULL || config->device_id == NULL || config->settings == NULL) {
         return false;
     }
     PairServer server;
@@ -219,9 +228,17 @@ bool pair_server_run(const PairServerConfig *config, uint32_t timeout_ms) {
         return false;
     }
 
-    absolute_time_t deadline = make_timeout_time_ms(timeout_ms);
-    while (!server.complete && !time_reached(deadline)) {
+    absolute_time_t link_check = make_timeout_time_ms(1000);
+    while (!server.complete) {
         cyw43_arch_poll();
+        if (time_reached(link_check)) {
+            int link = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
+            if (link != CYW43_LINK_UP) {
+                printf("PAIR_WIFI state=lost status=%d\n", link);
+                break;
+            }
+            link_check = make_timeout_time_ms(1000);
+        }
         sleep_ms(2);
     }
     if (server.complete) {

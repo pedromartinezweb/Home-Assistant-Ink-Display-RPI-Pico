@@ -9,7 +9,9 @@
 
 enum {
     DASHBOARD_MAX_ITEMS = 8,
-    DASHBOARD_NO_RED = INT32_MAX
+    DASHBOARD_ALERT_OFF = 0,
+    DASHBOARD_ALERT_ABOVE = 1,
+    DASHBOARD_ALERT_BELOW = 2
 };
 
 typedef struct {
@@ -17,7 +19,8 @@ typedef struct {
     const char *unit;
     uint8_t row;
     uint8_t decimals;
-    int red_above;
+    uint8_t alert_mode;
+    int alert_threshold_milli;
 } DashboardItem;
 
 typedef struct {

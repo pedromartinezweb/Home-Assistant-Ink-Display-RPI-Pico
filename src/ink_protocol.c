@@ -65,13 +65,12 @@ static bool copy_text(char *target, size_t size, const char *source, bool empty)
     return true;
 }
 
-static bool item_parse(char *line, InkFrame *frame, size_t index) {
-    char *fields[7];
+static bool split_fields(char *line, char **fields, size_t count) {
     char *cursor = line;
-    for (size_t field = 0; field < 7; ++field) {
+    for (size_t field = 0; field < count; ++field) {
         fields[field] = cursor;
-        char *separator = field < 6 ? strchr(cursor, '|') : NULL;
-        if (field < 6 && separator == NULL) {
+        char *separator = field + 1 < count ? strchr(cursor, '|') : NULL;
+        if (field + 1 < count && separator == NULL) {
             return false;
         }
         if (separator != NULL) {
@@ -79,10 +78,46 @@ static bool item_parse(char *line, InkFrame *frame, size_t index) {
             cursor = separator + 1;
         }
     }
-    if (strchr(fields[6], '|') != NULL) {
+    return strchr(fields[count - 1], '|') == NULL;
+}
+
+static bool item_parse_v2(char *line, InkFrame *frame, size_t index) {
+    char *fields[8];
+    if (!split_fields(line, fields, 8)) {
         return false;
     }
+    uint64_t row;
+    uint64_t decimals;
+    uint64_t alert_mode;
+    uint64_t valid;
+    int32_t alert_threshold;
+    int32_t value_milli;
+    if (!unsigned_value(fields[0], 2, &row) || row < 1 ||
+        !unsigned_value(fields[1], 2, &decimals) ||
+        !unsigned_value(fields[2], DASHBOARD_ALERT_BELOW, &alert_mode) ||
+        !signed_value(fields[3], &alert_threshold) ||
+        !signed_value(fields[4], &value_milli) ||
+        !unsigned_value(fields[5], 1, &valid) ||
+        !copy_text(frame->labels[index], sizeof(frame->labels[index]), fields[6], true) ||
+        !copy_text(frame->units[index], sizeof(frame->units[index]), fields[7], true)) {
+        return false;
+    }
+    frame->items[index].label = frame->labels[index];
+    frame->items[index].unit = frame->units[index];
+    frame->items[index].row = (uint8_t)row;
+    frame->items[index].decimals = (uint8_t)decimals;
+    frame->items[index].alert_mode = (uint8_t)alert_mode;
+    frame->items[index].alert_threshold_milli = alert_threshold;
+    frame->data.values_milli[index] = value_milli;
+    frame->data.valid[index] = valid != 0;
+    return true;
+}
 
+static bool item_parse_v1(char *line, InkFrame *frame, size_t index) {
+    char *fields[7];
+    if (!split_fields(line, fields, 7)) {
+        return false;
+    }
     uint64_t row;
     uint64_t decimals;
     uint64_t valid;
@@ -93,16 +128,23 @@ static bool item_parse(char *line, InkFrame *frame, size_t index) {
         !signed_value(fields[2], &red_above) ||
         !signed_value(fields[3], &value_milli) ||
         !unsigned_value(fields[4], 1, &valid) ||
-        !copy_text(frame->labels[index], sizeof(frame->labels[index]), fields[5], false) ||
-        !copy_text(frame->units[index], sizeof(frame->units[index]), fields[6], true)) {
+        !copy_text(frame->labels[index], sizeof(frame->labels[index]), fields[5], true) ||
+        !copy_text(frame->units[index], sizeof(frame->units[index]), fields[6], true) ||
+        (red_above != INT32_MAX &&
+         ((int64_t)red_above * 1000 < INT32_MIN ||
+          (int64_t)red_above * 1000 > INT32_MAX))) {
         return false;
     }
-
     frame->items[index].label = frame->labels[index];
     frame->items[index].unit = frame->units[index];
     frame->items[index].row = (uint8_t)row;
     frame->items[index].decimals = (uint8_t)decimals;
-    frame->items[index].red_above = red_above;
+    frame->items[index].alert_mode = red_above == INT32_MAX
+        ? DASHBOARD_ALERT_OFF
+        : DASHBOARD_ALERT_ABOVE;
+    frame->items[index].alert_threshold_milli = red_above == INT32_MAX
+        ? 0
+        : red_above * 1000;
     frame->data.values_milli[index] = value_milli;
     frame->data.valid[index] = valid != 0;
     return true;
@@ -115,7 +157,9 @@ bool ink_protocol_frame_parse(char *payload, size_t length, InkFrame *frame) {
     payload[length] = '\0';
     memset(frame, 0, sizeof(*frame));
     char *cursor = payload;
-    if (!line_is(&cursor, "INK1")) {
+    char *version = next_line(&cursor);
+    bool version_two = version != NULL && strcmp(version, "INK2") == 0;
+    if (!version_two && (version == NULL || strcmp(version, "INK1") != 0)) {
         return false;
     }
 
@@ -141,7 +185,9 @@ bool ink_protocol_frame_parse(char *payload, size_t length, InkFrame *frame) {
     frame->data.count = (size_t)count;
     for (size_t index = 0; index < count; ++index) {
         char *line = next_line(&cursor);
-        if (line == NULL || !item_parse(line, frame, index)) {
+        if (line == NULL ||
+            !(version_two ? item_parse_v2(line, frame, index)
+                          : item_parse_v1(line, frame, index))) {
             return false;
         }
     }

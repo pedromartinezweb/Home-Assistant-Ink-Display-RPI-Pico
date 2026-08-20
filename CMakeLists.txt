@@ -37,6 +37,7 @@ add_executable(ha_ink_display
     src/ink_client.c
     src/pair_server.c
     src/device_store.c
+    src/factory_reset.c
 )
 
 target_include_directories(ha_ink_display PRIVATE src)
@@ -50,6 +51,7 @@ target_link_libraries(ha_ink_display
     pico_rand
     pico_unique_id
     hardware_flash
+    hardware_watchdog
 )
 target_compile_options(ha_ink_display PRIVATE -Wall -Wextra -Werror)
 

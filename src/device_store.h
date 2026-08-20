@@ -19,5 +19,6 @@ void device_store_load(uint32_t provisioning_id, DeviceSettings *settings);
 bool device_store_pair(uint32_t provisioning_id,
                        const InkPairRequest *request,
                        DeviceSettings *settings);
+bool device_store_reset(void);
 
 #endif
