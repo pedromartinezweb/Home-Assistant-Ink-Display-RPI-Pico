@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ToolsDir = Join-Path $ProjectDir ".tools"
-$SdkDir = Join-Path $ToolsDir "pico-sdk"
+$SdkDir = Join-Path $ToolsDir "pico-sdk-2.3.0"
 
 function Refresh-Path {
     $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -70,7 +70,7 @@ if (-not (Get-Command arm-none-eabi-gcc -ErrorAction SilentlyContinue)) {
     $compiler = Get-ChildItem "C:\Program Files", "C:\Program Files (x86)" -Filter arm-none-eabi-gcc.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($compiler) {
         $env:Path = "$($compiler.Directory.FullName);$env:Path"
-        $env:PICO_TOOLCHAIN_PATH = Split-Path -Parent $compiler.Directory.FullName
+        $env:PICO_TOOLCHAIN_PATH = $compiler.Directory.FullName
     }
 }
 
@@ -80,7 +80,7 @@ if (-not (Has-Tools)) {
 
 New-Item -ItemType Directory -Force -Path $ToolsDir | Out-Null
 if (-not (Test-Path (Join-Path $SdkDir "external\pico_sdk_import.cmake"))) {
-    git clone --branch 2.2.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git $SdkDir
+    git clone --branch 2.3.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git $SdkDir
 }
 
 Write-Host "Select your Raspberry Pi Pico:"
@@ -145,7 +145,7 @@ $password = $null
 $env:PICO_SDK_PATH = $SdkDir
 $buildDir = Join-Path $ProjectDir "build-$board"
 cmake -E remove_directory $buildDir
-cmake -S $ProjectDir -B $buildDir -G Ninja -DPICO_BOARD=$board -DCMAKE_BUILD_TYPE=Release -DEPAPER_USB_LOGS=ON
+cmake -S $ProjectDir -B $buildDir -G Ninja -DPICO_BOARD=$board -DCMAKE_BUILD_TYPE=Release -DEPAPER_USB_LOGS=OFF
 cmake --build $buildDir
 
 $firmwareDir = Join-Path $ProjectDir "firmware"

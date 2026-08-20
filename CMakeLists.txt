@@ -14,7 +14,7 @@ project(ha_ink_display C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-option(EPAPER_USB_LOGS "Enable USB logs" ON)
+option(EPAPER_USB_LOGS "Enable USB logs" OFF)
 
 pico_sdk_init()
 
@@ -48,16 +48,23 @@ target_link_libraries(ha_ink_display
     pico_mbedtls_crypto
     pico_mbedtls_headers
     pico_flash
+    pico_low_power
     pico_rand
     pico_unique_id
     hardware_flash
     hardware_watchdog
 )
 target_compile_options(ha_ink_display PRIVATE -Wall -Wextra -Werror)
+set_source_files_properties(
+    ${PICO_SDK_PATH}/src/rp2_common/pico_low_power/low_power.c
+    PROPERTIES COMPILE_OPTIONS -Wno-error=unused-parameter
+)
 
 if (EPAPER_USB_LOGS)
+    target_compile_definitions(ha_ink_display PRIVATE EPAPER_USB_LOGS=1)
     pico_enable_stdio_usb(ha_ink_display 1)
 else()
+    target_compile_definitions(ha_ink_display PRIVATE EPAPER_USB_LOGS=0)
     pico_enable_stdio_usb(ha_ink_display 0)
 endif()
 pico_enable_stdio_uart(ha_ink_display 0)

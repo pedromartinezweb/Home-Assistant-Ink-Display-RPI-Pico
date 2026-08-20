@@ -22,7 +22,7 @@ jobs:
       - name: Install toolchain
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi
       - name: Download Pico SDK
-        run: git clone --branch 2.2.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
+        run: git clone --branch 2.3.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
       - name: Create test configuration
         run: cp src/config_local.example.h src/config_local.h
       - name: Build firmware

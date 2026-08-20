@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "log.h"
 #include "pico/stdlib.h"
 
 enum {
@@ -76,7 +77,7 @@ static EpdStatus reset(const Epd *epd) {
     sleep_ms(RESET_MS);
     gpio_put(epd->config.rst, true);
     sleep_ms(10);
-    printf("[%lu ms] HARD_RESET complete BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
+    APP_LOG("[%lu ms] HARD_RESET complete BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
     return EPD_OK;
 }
 
@@ -115,12 +116,12 @@ static EpdStatus configure(const Epd *epd) {
     if (!cmd(epd, 0x12)) {
         return EPD_ERROR_SPI;
     }
-    printf("[%lu ms] SWRESET sent BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
+    APP_LOG("[%lu ms] SWRESET sent BUSY=%d\n", now_ms(), gpio_get(epd->config.busy));
     sleep_ms(10);
 
     EpdStatus status = wait_level(epd, false, RESET_TIMEOUT_MS, EPD_ERROR_BUSY_IDLE);
     if (status != EPD_OK) {
-        printf("[%lu ms] SWRESET BUSY_not_released=%d\n", now_ms(), gpio_get(epd->config.busy));
+        APP_LOG("[%lu ms] SWRESET BUSY_not_released=%d\n", now_ms(), gpio_get(epd->config.busy));
         return status;
     }
 
@@ -222,7 +223,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
         uint32_t update_start = now_ms();
         uint32_t requested_baud = attempt == 1 ? epd->config.baud : RECOVERY_BAUD;
         uint32_t actual_baud = spi_set_baudrate(epd->config.spi, requested_baud);
-        printf("[%lu ms] UPDATE attempt=%u spi=%lu\n",
+        APP_LOG("[%lu ms] UPDATE attempt=%u spi=%lu\n",
                now_ms(),
                attempt,
                (unsigned long)actual_baud);
@@ -236,7 +237,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
             if (!write_rows(epd, 0x24, image) || !write_rows(epd, 0x26, image)) {
                 status = EPD_ERROR_SPI;
             }
-            printf("[%lu ms] RAM_TRANSFER ms=%lu\n",
+            APP_LOG("[%lu ms] RAM_TRANSFER ms=%lu\n",
                    now_ms(),
                    (unsigned long)(now_ms() - transfer_start));
         }
@@ -246,7 +247,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
             value = report(status, attempt);
         }
 
-        printf("[%lu ms] UPDATE %s total=%lu busy=%lu\n",
+        APP_LOG("[%lu ms] UPDATE %s total=%lu busy=%lu\n",
                now_ms(),
                epd_status_name(value.status),
                (unsigned long)value.elapsed_ms,
@@ -258,7 +259,7 @@ static EpdReport update(Epd *epd, const EpdImage *image) {
                 return value;
             }
             value.elapsed_ms = now_ms() - update_start;
-            printf("[%lu ms] FULL_UPDATE ms=%lu refresh=%lu\n",
+            APP_LOG("[%lu ms] FULL_UPDATE ms=%lu refresh=%lu\n",
                    now_ms(),
                    (unsigned long)value.elapsed_ms,
                    (unsigned long)value.busy_ms);
@@ -302,7 +303,7 @@ EpdStatus epd_open(Epd *epd, const EpdConfig *config) {
     }
 
     epd->open = true;
-    printf("[%lu ms] SPI ready requested=%lu actual=%lu\n",
+    APP_LOG("[%lu ms] SPI ready requested=%lu actual=%lu\n",
            now_ms(),
            (unsigned long)config->baud,
            (unsigned long)baud);
@@ -359,7 +360,7 @@ EpdReport epd_draw_partial(Epd *epd,
     }
     value.elapsed_ms = now_ms() - start;
 
-    printf("[%lu ms] PARTIAL x=%u y=%u w=%u h=%u bytes=%lu spi=%lu transfer=%lu total=%lu busy=%lu status=%s\n",
+    APP_LOG("[%lu ms] PARTIAL x=%u y=%u w=%u h=%u bytes=%lu spi=%lu transfer=%lu total=%lu busy=%lu status=%s\n",
            now_ms(),
            x,
            y,

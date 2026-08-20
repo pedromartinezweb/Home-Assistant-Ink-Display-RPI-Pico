@@ -6,6 +6,7 @@
 #include "frame.h"
 #include "factory_reset.h"
 #include "ink_client.h"
+#include "log.h"
 #include "pair_server.h"
 #include "pico/rand.h"
 #include "pico/stdlib.h"
@@ -24,14 +25,14 @@ static uint32_t now_ms(void) {
 
 static void halt(EpdStatus status) {
     for (;;) {
-        printf("[%lu ms] SYSTEM_HALTED status=%s\n", now_ms(), epd_status_name(status));
+        APP_LOG("[%lu ms] SYSTEM_HALTED status=%s\n", now_ms(), epd_status_name(status));
         sleep_ms(1000);
     }
 }
 
 static void present(App *app, const uint8_t *black, const uint8_t *red) {
     EpaperResult result = epaper_present(&app->epaper, black, red);
-    printf("[%lu ms] PRESENT mode=%d status=%s bytes=%lu busy=%lu\n",
+    APP_LOG("[%lu ms] PRESENT mode=%d status=%s bytes=%lu busy=%lu\n",
            now_ms(),
            result.mode,
            epd_status_name(result.driver.status),
@@ -69,13 +70,13 @@ static bool pair_device(App *app,
                                                            APP_WIFI_PASSWORD,
                                                            WIFI_TIMEOUT_MS);
         if (wifi_status != WIFI_SESSION_OK) {
-            printf("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
+            APP_LOG("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
             factory_reset_sleep(RETRY_SECONDS * 1000U);
             continue;
         }
         if (!ready) {
             pairing_screen(app, code);
-            printf("[%lu ms] PAIRING_READY device=%s code=%06lu\n",
+            APP_LOG("[%lu ms] PAIRING_READY device=%s code=%06lu\n",
                    now_ms(),
                    device_id,
                    (unsigned long)code);
@@ -90,10 +91,10 @@ static bool pair_device(App *app,
         bool paired = pair_server_run(&config);
         wifi_session_close(&wifi);
         if (paired) {
-            printf("[%lu ms] PAIRING_OK device=%s\n", now_ms(), device_id);
+            APP_LOG("[%lu ms] PAIRING_OK device=%s\n", now_ms(), device_id);
             return true;
         }
-        printf("[%lu ms] PAIRING_WAIT device=%s\n", now_ms(), device_id);
+        APP_LOG("[%lu ms] PAIRING_WAIT device=%s\n", now_ms(), device_id);
     }
     return true;
 }
@@ -110,7 +111,7 @@ void app_run(App *app, const EpdConfig *display) {
     if (app == NULL || display == NULL || APP_WIFI_SSID[0] == '\0') {
         halt(EPD_ERROR_ARGUMENT);
     }
-    printf("[%lu ms] START version=1 transport=ha-poll signed=1\n", now_ms());
+    APP_LOG("[%lu ms] START version=1 transport=ha-poll signed=1\n", now_ms());
     EpdStatus status = epaper_open(&app->epaper, display);
     if (status != EPD_OK) {
         halt(status);
@@ -133,7 +134,7 @@ void app_run(App *app, const EpdConfig *display) {
                                                            APP_WIFI_PASSWORD,
                                                            WIFI_TIMEOUT_MS);
         if (wifi_status != WIFI_SESSION_OK) {
-            printf("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
+            APP_LOG("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
             factory_reset_sleep(RETRY_SECONDS * 1000U);
             continue;
         }
@@ -143,24 +144,24 @@ void app_run(App *app, const EpdConfig *display) {
         wifi_session_close(&wifi);
         if (client_status == INK_CLIENT_UPDATED) {
             if (!update_display(app, &next)) {
-                printf("[%lu ms] FRAME_REJECTED revision=%llu\n",
+                APP_LOG("[%lu ms] FRAME_REJECTED revision=%llu\n",
                        now_ms(),
                        (unsigned long long)next.revision);
             } else {
                 revision = next.revision;
                 interval_seconds = next.interval_seconds;
-                printf("[%lu ms] FRAME_OK revision=%llu items=%u interval=%lu\n",
+                APP_LOG("[%lu ms] FRAME_OK revision=%llu items=%u interval=%lu\n",
                        now_ms(),
                        (unsigned long long)revision,
                        (unsigned int)next.data.count,
                        (unsigned long)interval_seconds);
             }
         } else if (client_status == INK_CLIENT_UNCHANGED) {
-            printf("[%lu ms] FRAME_UNCHANGED revision=%llu\n",
+            APP_LOG("[%lu ms] FRAME_UNCHANGED revision=%llu\n",
                    now_ms(),
                    (unsigned long long)revision);
         } else {
-            printf("[%lu ms] POLL_ERROR status=%d\n", now_ms(), client_status);
+            APP_LOG("[%lu ms] POLL_ERROR status=%d\n", now_ms(), client_status);
             interval_seconds = RETRY_SECONDS;
         }
         factory_reset_sleep(interval_seconds * 1000U);

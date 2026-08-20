@@ -3,7 +3,7 @@ set -eu
 
 project_dir=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
 tools_dir="$project_dir/.tools"
-sdk_dir="$tools_dir/pico-sdk"
+sdk_dir="$tools_dir/pico-sdk-2.3.0"
 
 compiler_ready() {
     command -v arm-none-eabi-gcc >/dev/null 2>&1 || return 1
@@ -22,7 +22,7 @@ select_macos_toolchain() {
     compiler=$(find /Applications/ArmGNUToolchain -path '*/arm-none-eabi/bin/arm-none-eabi-gcc' -type f 2>/dev/null | sort -V | tail -n 1)
     [ -n "$compiler" ] || return 1
     toolchain_bin=$(dirname "$compiler")
-    PICO_TOOLCHAIN_PATH=$(dirname "$toolchain_bin")
+    PICO_TOOLCHAIN_PATH="$toolchain_bin"
     PATH="$toolchain_bin:$PATH"
     export PICO_TOOLCHAIN_PATH PATH
 }
@@ -121,7 +121,7 @@ fi
 
 mkdir -p "$tools_dir"
 if [ ! -f "$sdk_dir/external/pico_sdk_import.cmake" ]; then
-    git clone --branch 2.2.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$sdk_dir"
+    git clone --branch 2.3.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$sdk_dir"
 fi
 
 printf '%s\n' "Select your Raspberry Pi Pico:"

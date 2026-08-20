@@ -16,8 +16,10 @@ static const EpdConfig display = {
 };
 
 int main(void) {
+#if EPAPER_USB_LOGS
     stdio_init_all();
     sleep_ms(1000);
+#endif
     app_run(&app, &display);
     return 0;
 }

@@ -1,40 +1,73 @@
+<p align="center">
+  <img src="custom_components/ha_ink_display/brand/icon@2x.png" width="128" alt="Home Assistant Ink Display icon">
+</p>
+
 # Home Assistant Ink Display RPI Pico
 
-A configurable Home Assistant dashboard for Raspberry Pi Pico W, Pico 2 W, and the WeActStudio 2.13-inch black, white, and red e-paper display.
+A configurable, low-power Home Assistant dashboard for Raspberry Pi Pico W, Pico 2 W, and the WeActStudio 2.13-inch black, white, and red e-paper display.
 
-No Arduino knowledge, C editing, Home Assistant token, or fixed entity list is required. A guided installer builds the UF2 with your Wi-Fi credentials, and every displayed entity is selected later from Home Assistant.
+No Arduino knowledge, C editing, Home Assistant token, or fixed entity list is required. The guided installer creates the UF2 with your Wi-Fi credentials. Home Assistant manages the layout, entities, alerts, and update interval afterward.
 
 ![Home Assistant e-paper dashboard](docs/rp2040-ink-home-assistant.jpg)
 
-## What it does
+## 1. Install it in Home Assistant
 
-- Shows one to four Home Assistant entities in each of two rows.
-- Supports up to eight entities in total.
-- Provides a visual Home Assistant editor with drag-and-drop ordering.
-- Lets you edit entities, optional labels, units, decimal places, and red alerts at any time.
-- Supports red alerts above or below a configured value.
-- Supports `º` and `°` in labels and units.
-- Automatically resizes columns and values to fit the selected layout.
-- Discovers the display automatically on the local network.
-- Pairs using a six-digit code shown on the e-paper display.
-- Does not store a Home Assistant access token.
-- Refreshes the screen only after a configured entity changes.
-- Groups changes using a minimum interval from 60 seconds to 24 hours.
-- Uses five minutes as the default minimum interval.
-- Turns Wi-Fi off between checks and puts the display controller into deep sleep after writing.
-- Preserves the last image if Wi-Fi or Home Assistant is unavailable.
+Home Assistant is the main interface for this project. Install the integration before preparing the hardware:
 
-## What you need
+1. Open **HACS → Integrations**.
+2. Open the menu in the top-right corner and select **Custom repositories**.
+3. Add this repository:
+
+   ```text
+   https://github.com/pedromartinezweb/Home-Assistant-Ink-Display-RPI-Pico
+   ```
+
+4. Select **Integration** as the category.
+5. Search for **Home Assistant Ink Display** and install it.
+6. Restart Home Assistant.
+
+The integration includes its own icon on Home Assistant 2026.3 or newer.
+
+## 2. Manage the display in Home Assistant
+
+After pairing the hardware, open **Ink Display** in the Home Assistant sidebar. This is the only place you need to manage the screen.
+
+You can:
+
+- Add one to four entities to each of two rows, up to eight in total.
+- Drag items to reorder them or move them between rows.
+- Edit or remove any item without rebuilding the firmware.
+- Leave labels and custom units empty.
+- Use symbols such as `º` and `°` in labels and units.
+- Choose zero, one, or two decimal places.
+- Show a value in red when it is above or below a threshold.
+- Set the minimum update interval from 60 seconds to 24 hours.
+
+Select **Save changes** after editing. The Pico receives the new configuration during its next check. The default minimum interval is five minutes.
+
+| Setting | Meaning |
+|---|---|
+| Entity | Home Assistant value shown in the cell |
+| Label | Optional short name; empty uses no label |
+| Custom unit | Optional unit; empty uses the entity unit |
+| Decimal places | Zero, one, or two |
+| Red alert | Never, above the threshold, or below the threshold |
+| Alert threshold | Numeric value that activates the selected red alert |
+
+The header always shows `ACT HH:MM`. `ACT` is fixed and indicates the time of the last data update.
+
+## 3. Prepare the hardware
+
+### What you need
 
 - Raspberry Pi Pico W or Raspberry Pi Pico 2 W.
 - WeActStudio 2.13-inch BWR E-Paper Module.
 - Eight female-to-female jumper wires.
 - A USB data cable.
 - A 2.4 GHz Wi-Fi network.
-- Home Assistant with [HACS](https://hacs.xyz) installed.
 - A Windows, macOS, Ubuntu, Debian, or Raspberry Pi OS computer.
 
-## 1. Check the display
+### Check the display
 
 The solder bridges on the back of the e-paper module must select `4-Lines SPI`:
 
@@ -43,7 +76,7 @@ The solder bridges on the back of the e-paper module must select `4-Lines SPI`:
 
 Only power the module from 3.3 V.
 
-## 2. Connect the display
+### Connect the display
 
 Disconnect USB power before changing wires.
 
@@ -60,182 +93,144 @@ Disconnect USB power before changing wires.
 
 Pico W and Pico 2 W use the same wiring. MISO is not connected.
 
-## 3. Download the project
+## 4. Create and install the UF2
 
-Select **Code → Download ZIP** on GitHub and extract the ZIP file.
-
-Advanced users can clone it instead:
+Download the project with **Code → Download ZIP** and extract it. Advanced users can clone it:
 
 ```sh
 git clone https://github.com/pedromartinezweb/Home-Assistant-Ink-Display-RPI-Pico.git
 cd Home-Assistant-Ink-Display-RPI-Pico
 ```
 
-## 4. Create your UF2
-
-The setup tool checks the required compiler and build tools. If something is missing, it asks the operating system to install it and downloads the official Raspberry Pi Pico SDK into this project.
+The guided setup checks the required tools, installs missing dependencies, downloads the official Raspberry Pi Pico SDK, asks for the Pico model and Wi-Fi credentials, builds the UF2, and offers to upload it.
 
 ### Windows
 
 Double-click `setup.bat`.
 
-Windows may ask for permission while Windows Package Manager installs Git, CMake, Ninja, and the Arm compiler.
-
 ### macOS
 
-Double-click `setup.command`.
-
-If macOS blocks it, right-click the file, select **Open**, and confirm. Homebrew is installed automatically when required.
+Double-click `setup.command`. If macOS blocks it, right-click the file, select **Open**, and confirm.
 
 ### Ubuntu, Debian, or Raspberry Pi OS
 
-Open a terminal inside the extracted project folder and run:
+Open a terminal in the extracted project folder and run:
 
 ```sh
 chmod +x setup.sh
 ./setup.sh
 ```
 
-The installer asks for:
+The installer asks only for:
 
 1. Pico W or Pico 2 W.
-2. Your Wi-Fi name.
-3. Your Wi-Fi password, which is hidden while typing.
+2. Wi-Fi name.
+3. Wi-Fi password, hidden while typing.
 
-Home Assistant address and credentials are not requested. Pairing supplies the required local connection automatically.
+It does not ask for a Home Assistant URL or token. The generated file is stored in `firmware`, and the installer attempts to upload it to the connected Pico.
 
-The finished file is placed in `firmware`:
-
-```text
-firmware/ha_ink_display-pico_w.uf2
-```
-
-The installer then asks whether it should upload the firmware to a connected Pico. It uses `picotool` when available and also supports a Pico already connected in BOOTSEL mode.
-
-The Wi-Fi configuration file and generated UF2 are excluded from Git. Do not share the UF2 because it contains your Wi-Fi credentials.
-
-## 5. Install the UF2
-
-If the setup tool reports that it uploaded the firmware successfully, continue directly to the next section.
+If automatic upload is unavailable:
 
 1. Disconnect the Pico from USB.
-2. Hold the `BOOTSEL` button.
-3. Connect USB while holding the button.
-4. Release it when a drive named `RPI-RP2` appears.
-5. Copy the generated UF2 to `RPI-RP2`.
-6. Wait for the Pico to restart.
+2. Hold `BOOTSEL` while reconnecting USB.
+3. Release it when `RPI-RP2` or `RP2350` appears.
+4. Copy the generated UF2 to that drive.
+5. Wait for the Pico to restart.
 
-The e-paper display performs a complete cleaning cycle and then shows a six-digit pairing code.
+The Wi-Fi configuration and generated UF2 are excluded from Git. Do not share the UF2 because it contains your Wi-Fi credentials.
 
-## 6. Install the Home Assistant integration
+## 5. Pair the display
 
-1. Open HACS in Home Assistant.
-2. Open **Integrations**.
-3. Open the menu in the top-right corner and select **Custom repositories**.
-4. Enter:
+After its first complete cleaning cycle, the screen shows a six-digit pairing code.
 
-   ```text
-   https://github.com/pedromartinezweb/Home-Assistant-Ink-Display-RPI-Pico
-   ```
+1. Open **Settings → Devices & services** in Home Assistant.
+2. Select the automatically discovered display, or select **Add integration → Home Assistant Ink Display**.
+3. Enter the six-digit code shown on the screen.
+4. Open **Ink Display** in the sidebar.
+5. Add the required entities and select **Save changes**.
 
-5. Select the **Integration** category and add it.
-6. Search for **Home Assistant Ink Display** and install it.
-7. Restart Home Assistant.
-
-## 7. Pair and configure the display
-
-After restarting Home Assistant:
-
-1. Open **Settings → Devices & services**.
-2. Select **Add integration** and search for **Home Assistant Ink Display**, or select the automatically discovered display.
-3. Enter the six-digit code shown on the e-paper display. Home Assistant locates the display automatically; no IP address is required.
-4. Open **Ink Display** in the Home Assistant sidebar.
-5. Add at least one item to each row.
-6. Drag items to change their order or move them between rows.
-7. Select **Save changes**. The default update interval is 300 seconds.
-
-For each position, Home Assistant asks for:
-
-| Setting | Meaning |
-|---|---|
-| Entity | The Home Assistant value to display |
-| Label | Optional short uppercase name shown on the display |
-| Custom unit | Leave empty to use the entity unit automatically |
-| Decimal places | Zero, one, or two |
-| Red alert | Never, when the value is above, or when the value is below |
-| Alert threshold | Numeric value that activates the selected red alert |
-
-The header always shows `ACT HH:MM` on the right. `ACT` is fixed and means the time of the last data update.
-
-The integration never requires the user to find or enter the Pico IP address. If more than one unpaired display is available, Home Assistant presents a friendly device list after the pairing code.
+No IP address is required. If several unpaired displays are available, Home Assistant shows a device list after validating the pairing code.
 
 ## How updates work
 
-Home Assistant watches only the configured entities. When one changes, the integration keeps the newest combined dashboard state.
+Home Assistant watches only the configured entities. When one changes, it keeps the newest combined dashboard state. At the configured interval, the Pico wakes briefly and enables Wi-Fi:
 
-The Pico briefly enables Wi-Fi at the selected interval:
+- If nothing changed, the display stays asleep.
+- If values changed, the Pico downloads one authenticated frame and refreshes once.
+- Multiple changes are combined into the same refresh.
+- Unavailable or non-numeric values appear as `N/A`.
+- If Wi-Fi or Home Assistant is unavailable, the previous e-paper image remains visible.
 
-- If no configured entity changed, the display remains asleep.
-- If one or more entities changed, the Pico downloads one signed frame and refreshes once.
-- Several changes during the interval are combined into the same refresh.
-- If a value is unavailable or not numeric, its cell shows `N/A`.
+The 60-second minimum protects the tri-color panel from continuous updates. Five minutes is recommended for environmental sensors.
 
-The minimum interval protects the tri-color e-paper panel from continuous updates. It cannot be configured below 60 seconds. A five-minute interval is recommended for environmental sensors.
+## Low-power behavior
 
-## Change the layout later
+The standard build is the low-power profile:
 
-Open **Ink Display** in the Home Assistant sidebar. Add, remove, edit, or drag items and select **Save changes**. The next Pico check receives the new layout automatically; no new UF2 is needed.
+- USB serial and diagnostic formatting are removed from production firmware.
+- Wi-Fi is initialized only for a check and shut down immediately afterward.
+- The e-paper controller enters deep sleep after every write.
+- The Pico uses the SDK dormant mode between checks.
+- A four-second dormant slice preserves the long-press `BOOTSEL` factory-reset function while avoiding frequent CPU wake-ups.
+
+The Raspberry Pi SDK documents rough board-level measurements around 0.95 mA for an RP2040 Pico in dormant mode and 3.3 mA for an RP2350 Pico 2 in dormant mode. These are reference figures, not measurements of this complete device; the W radio package, regulator, e-paper module, supply voltage, and wiring affect the real total.
+
+For USB diagnostics, build the separate debug profile:
+
+```sh
+EPAPER_USB_LOGS=ON ./build.sh pico_w
+```
+
+The debug profile keeps USB logging available and uses ordinary timed sleep, so it consumes more power. The normal setup scripts always build the low-power profile.
 
 ## Pair again or change Wi-Fi
 
-To clear only the Home Assistant pairing, keep `BOOTSEL` pressed for five seconds while the firmware is running. The Pico erases its device secret, restarts, and shows a new pairing code. A short press does nothing. Add **Home Assistant Ink Display** again and enter the new code; Home Assistant reconnects the existing device and preserves its layout.
+To clear only Home Assistant pairing, hold `BOOTSEL` for about five seconds while the firmware is running. The Pico erases its device secret, restarts, and shows a new pairing code. A short press does nothing. Pairing again reconnects the existing Home Assistant device and preserves its layout.
 
-To change Wi-Fi, run the setup tool again and install the newly generated UF2. Each build receives a new provisioning identifier and clears the previous pairing.
+To change Wi-Fi, run the setup tool again and install the new UF2. Each build gets a new provisioning identifier and clears the previous pairing.
 
 ## Common problems
 
 | Problem | What to check |
 |---|---|
 | The installer cannot install tools | Confirm Internet access and accept the administrator prompt |
-| No `RPI-RP2` drive appears | Use a USB data cable and hold `BOOTSEL` before connecting USB |
+| No Pico drive appears | Use a USB data cable and hold `BOOTSEL` before connecting USB |
 | The display never changes | Check every wire, 3.3 V power, and the `SB1`/`SB2` SPI setting |
-| A pairing code appears but Home Assistant finds nothing | Confirm both devices use the same LAN and that mDNS is not blocked |
-| Pairing fails | Enter the current six-digit code before restarting the Pico |
-| The Ink Display editor is missing | Update the integration through HACS and restart Home Assistant |
-| Home Assistant reports that local HTTP is required | Configure an internal Home Assistant URL using local HTTP |
-| A cell shows `N/A` | The entity is unavailable, unknown, or does not contain a numeric state |
-| The screen flashes several colors | This is the normal full waveform of the tri-color e-paper panel |
+| Pairing code appears but discovery fails | Confirm both devices use the same LAN and mDNS is not blocked |
+| Pairing fails | Enter the current code before restarting the Pico |
+| The sidebar editor is missing | Update through HACS and restart Home Assistant |
+| Home Assistant reports local HTTP is required | Configure a local HTTP internal URL in Home Assistant |
+| A cell shows `N/A` | The entity is unavailable, unknown, or not numeric |
+| The screen flashes several colors | This is the normal full waveform of the tri-color panel |
+| USB serial logs are missing | The standard low-power build disables them; use the debug profile |
 
-## Security model
+## Security
 
 - Wi-Fi credentials remain in the local untracked configuration and generated UF2.
 - The Pico never receives a Home Assistant user token.
-- Pairing requires physical access to the code on the display.
+- Pairing requires physical access to the code shown on the display.
 - Pairing creates a random 256-bit device secret.
-- Home Assistant signs every frame with HMAC-SHA256.
-- Poll requests and display frames are authenticated with HMAC-SHA256, so the device secret is not sent during normal updates.
-- Communication remains on the local network.
+- Poll requests and frames use HMAC-SHA256 authentication.
+- Normal communication remains on the local network.
 
 ## Printable enclosure
 
-The [`enclosure`](enclosure/) folder contains a ready-to-slice STL, editable OpenSCAD source, and assembly instructions.
+The [`enclosure`](enclosure/) folder contains ready-to-slice STL files, editable OpenSCAD source, and assembly instructions.
 
 ## Development
 
-Run the native framebuffer and protocol tests:
+Run native framebuffer and protocol tests:
 
 ```sh
 ./test.sh
 ```
 
-Build manually:
+Build manually with the low-power profile:
 
 ```sh
 export PICO_SDK_PATH=/path/to/pico-sdk
 ./build.sh pico_w
 ```
-
-The repository contains:
 
 | Path | Responsibility |
 |---|---|
@@ -248,10 +243,11 @@ The repository contains:
 
 ## Original project
 
-This project is based on [RP2040 INK Display Home Assistant](https://github.com/pedromartinezweb/RP2040-INK-Display-Home-Assistant), whose original firmware established the SSD1680 driver, stable complete refresh sequence, low-power lifecycle, and responsive two-row renderer.
+This project is based on [RP2040 INK Display Home Assistant](https://github.com/pedromartinezweb/RP2040-INK-Display-Home-Assistant), whose firmware established the SSD1680 driver, stable full-refresh sequence, low-power lifecycle, and responsive two-row renderer.
 
-## Hardware references
+## References
 
+- [Home Assistant local brand assets](https://developers.home-assistant.io/docs/core/integration/brand_images/)
+- [Raspberry Pi Pico SDK low-power API](https://www.raspberrypi.com/documentation/pico-sdk/high_level.html)
 - [WeActStudio E-Paper Module](https://github.com/WeActStudio/WeActStudio.EpaperModule)
 - [Raspberry Pi Pico W documentation](https://pip.raspberrypi.com/categories/686-raspberry-pi-pico-w)
-- [Raspberry Pi Pico C/C++ SDK](https://github.com/raspberrypi/pico-sdk)
