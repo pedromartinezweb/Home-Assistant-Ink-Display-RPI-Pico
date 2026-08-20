@@ -98,7 +98,9 @@ def item_schema(defaults: dict | None = None) -> vol.Schema:
     fields[vol.Optional(CONF_UNIT, default=source.get(CONF_UNIT, ""))] = (
         selector.TextSelector()
     )
-    fields[vol.Required(CONF_DECIMALS, default=source.get(CONF_DECIMALS, 0))] = (
+    fields[
+        vol.Required(CONF_DECIMALS, default=str(source.get(CONF_DECIMALS, 0)))
+    ] = (
         selector.SelectSelector(
             selector.SelectSelectorConfig(
                 options=["0", "1", "2"], mode=selector.SelectSelectorMode.DROPDOWN
