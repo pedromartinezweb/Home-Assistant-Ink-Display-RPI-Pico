@@ -19,6 +19,8 @@ static bool valid_reading(const Reading *reading) {
            reading->co2 <= 99999 &&
            reading->pm25 >= 0 &&
            reading->pm25 <= 9999 &&
+           reading->external_temperature_tenths >= -500 &&
+           reading->external_temperature_tenths <= 1000 &&
            reading->hour >= 0 &&
            reading->hour <= 23 &&
            reading->minute >= 0 &&
@@ -33,10 +35,8 @@ static bool valid_config(const DashboardConfig *config) {
     return config != NULL &&
            valid_text(config->title, 24) &&
            valid_text(config->updated, 8) &&
-           valid_text(config->status, 16) &&
-           valid_text(config->good, 8) &&
-           valid_text(config->fair, 8) &&
-           valid_text(config->high, 8) &&
+           valid_text(config->external_temperature, 16) &&
+           valid_text(config->external_temperature_unit, 5) &&
            valid_text(config->co2, 8) &&
            valid_text(config->co2_unit, 5) &&
            valid_text(config->temperature, 12) &&
@@ -45,8 +45,7 @@ static bool valid_config(const DashboardConfig *config) {
            valid_text(config->humidity_unit, 5) &&
            valid_text(config->pm25, 12) &&
            valid_text(config->pm25_unit, 5) &&
-           config->co2_good_max >= 0 &&
-           config->co2_fair_max > config->co2_good_max;
+           config->co2_red_above >= 0;
 }
 
 static int text_width(const char *text, int scale) {
@@ -64,27 +63,28 @@ static void metric(Dashboard *dashboard, int x, const char *label, const char *v
     frame_text_landscape(dashboard->black, unit_x, scale == 2 ? 105 : 98, unit, 1);
 }
 
-static const char *air_quality(int co2, const DashboardConfig *config) {
-    if (co2 <= config->co2_good_max) {
-        return config->good;
-    }
-    if (co2 <= config->co2_fair_max) {
-        return config->fair;
-    }
-    return config->high;
+static void format_tenths(char *value, size_t size, int tenths) {
+    int magnitude = tenths < 0 ? -tenths : tenths;
+    snprintf(value, size, "%s%d.%d", tenths < 0 ? "-" : "", magnitude / 10, magnitude % 10);
 }
 
 static void hero(Dashboard *dashboard,
                  const DashboardConfig *config,
-                 const char *value,
-                 const char *status) {
+                 const Reading *reading) {
+    char value[20];
+    snprintf(value, sizeof(value), "%d", reading->co2);
     int scale = strlen(value) > 4 ? 3 : 4;
-    frame_text_landscape(dashboard->red, 8, 39, config->co2, 1);
-    frame_text_landscape(dashboard->red, 8, 50, value, scale);
+    uint8_t *co2_plane = reading->co2 > config->co2_red_above ? dashboard->red : dashboard->black;
+    frame_text_landscape(co2_plane, 8, 39, config->co2, 1);
+    frame_text_landscape(co2_plane, 8, 50, value, scale);
     int unit_x = 8 + text_width(value, scale) + UNIT_GAP;
-    frame_text_landscape(dashboard->red, unit_x, scale == 4 ? 69 : 62, config->co2_unit, 1);
-    frame_text_landscape(dashboard->black, 145, 41, config->status, 1);
-    frame_text_landscape(dashboard->black, 145, 54, status, 2);
+    frame_text_landscape(co2_plane, unit_x, scale == 4 ? 69 : 62, config->co2_unit, 1);
+
+    format_tenths(value, sizeof(value), reading->external_temperature_tenths);
+    frame_text_landscape(dashboard->black, 145, 41, config->external_temperature, 1);
+    frame_text_landscape(dashboard->black, 145, 54, value, 2);
+    unit_x = 145 + text_width(value, 2) + UNIT_GAP;
+    frame_text_landscape(dashboard->black, unit_x, 61, config->external_temperature_unit, 1);
 }
 
 static void header(Dashboard *dashboard, const Reading *reading, const DashboardConfig *config) {
@@ -104,14 +104,9 @@ static void layout(Dashboard *dashboard) {
     frame_line_landscape(dashboard->black, 166, 86, 166, 116, true);
 }
 
-static void temperature(char *value, size_t size, int tenths) {
-    int magnitude = tenths < 0 ? -tenths : tenths;
-    snprintf(value, size, "%s%d.%d", tenths < 0 ? "-" : "", magnitude / 10, magnitude % 10);
-}
-
 static void draw_metrics(Dashboard *dashboard, const Reading *reading, const DashboardConfig *config) {
     char value[20];
-    temperature(value, sizeof(value), reading->temperature_tenths);
+    format_tenths(value, sizeof(value), reading->temperature_tenths);
     metric(dashboard, 8, config->temperature, value, config->temperature_unit);
 
     snprintf(value, sizeof(value), "%d", reading->humidity);
@@ -119,12 +114,6 @@ static void draw_metrics(Dashboard *dashboard, const Reading *reading, const Das
 
     snprintf(value, sizeof(value), "%d", reading->pm25);
     metric(dashboard, 174, config->pm25, value, config->pm25_unit);
-}
-
-static void draw_air(Dashboard *dashboard, int co2, const DashboardConfig *config) {
-    char value[20];
-    snprintf(value, sizeof(value), "%d", co2);
-    hero(dashboard, config, value, air_quality(co2, config));
 }
 
 static void clear(Dashboard *dashboard) {
@@ -140,7 +129,7 @@ bool dashboard_draw(Dashboard *dashboard, const Reading *reading, const Dashboar
     clear(dashboard);
     header(dashboard, reading, config);
     layout(dashboard);
-    draw_air(dashboard, reading->co2, config);
+    hero(dashboard, config, reading);
     draw_metrics(dashboard, reading, config);
     return true;
 }

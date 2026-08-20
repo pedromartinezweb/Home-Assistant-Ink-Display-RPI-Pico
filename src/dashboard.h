@@ -11,6 +11,7 @@ typedef struct {
     int humidity;
     int co2;
     int pm25;
+    int external_temperature_tenths;
     int hour;
     int minute;
 } Reading;
@@ -23,10 +24,8 @@ typedef struct {
 typedef struct {
     const char *title;
     const char *updated;
-    const char *status;
-    const char *good;
-    const char *fair;
-    const char *high;
+    const char *external_temperature;
+    const char *external_temperature_unit;
     const char *co2;
     const char *co2_unit;
     const char *temperature;
@@ -35,8 +34,7 @@ typedef struct {
     const char *humidity_unit;
     const char *pm25;
     const char *pm25_unit;
-    int co2_good_max;
-    int co2_fair_max;
+    int co2_red_above;
 } DashboardConfig;
 
 bool dashboard_draw(Dashboard *dashboard, const Reading *reading, const DashboardConfig *config);

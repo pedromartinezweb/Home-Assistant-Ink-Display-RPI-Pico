@@ -31,6 +31,10 @@
 #define APP_HA_PM25 ""
 #endif
 
+#ifndef APP_HA_EXTERNAL_TEMPERATURE
+#define APP_HA_EXTERNAL_TEMPERATURE ""
+#endif
+
 #ifndef APP_REFRESH_SECONDS
 #define APP_REFRESH_SECONDS 300
 #endif
@@ -43,20 +47,12 @@
 #define APP_UI_UPDATED "ACT"
 #endif
 
-#ifndef APP_UI_STATUS
-#define APP_UI_STATUS "STATUS"
+#ifndef APP_UI_EXTERNAL_TEMPERATURE
+#define APP_UI_EXTERNAL_TEMPERATURE "EXT TEMP"
 #endif
 
-#ifndef APP_UI_GOOD
-#define APP_UI_GOOD "GOOD"
-#endif
-
-#ifndef APP_UI_FAIR
-#define APP_UI_FAIR "FAIR"
-#endif
-
-#ifndef APP_UI_HIGH
-#define APP_UI_HIGH "HIGH"
+#ifndef APP_UI_EXTERNAL_TEMPERATURE_UNIT
+#define APP_UI_EXTERNAL_TEMPERATURE_UNIT "C"
 #endif
 
 #ifndef APP_UI_CO2
@@ -91,12 +87,8 @@
 #define APP_UI_PM25_UNIT "UG/M3"
 #endif
 
-#ifndef APP_CO2_GOOD_MAX
-#define APP_CO2_GOOD_MAX 800
-#endif
-
-#ifndef APP_CO2_FAIR_MAX
-#define APP_CO2_FAIR_MAX 1200
+#ifndef APP_CO2_RED_ABOVE
+#define APP_CO2_RED_ABOVE 1000
 #endif
 
 #endif

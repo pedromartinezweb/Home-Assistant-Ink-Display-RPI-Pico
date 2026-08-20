@@ -14,10 +14,8 @@ enum {
 static const DashboardConfig dashboard_config = {
     .title = APP_UI_TITLE,
     .updated = APP_UI_UPDATED,
-    .status = APP_UI_STATUS,
-    .good = APP_UI_GOOD,
-    .fair = APP_UI_FAIR,
-    .high = APP_UI_HIGH,
+    .external_temperature = APP_UI_EXTERNAL_TEMPERATURE,
+    .external_temperature_unit = APP_UI_EXTERNAL_TEMPERATURE_UNIT,
     .co2 = APP_UI_CO2,
     .co2_unit = APP_UI_CO2_UNIT,
     .temperature = APP_UI_TEMPERATURE,
@@ -26,8 +24,7 @@ static const DashboardConfig dashboard_config = {
     .humidity_unit = APP_UI_HUMIDITY_UNIT,
     .pm25 = APP_UI_PM25,
     .pm25_unit = APP_UI_PM25_UNIT,
-    .co2_good_max = APP_CO2_GOOD_MAX,
-    .co2_fair_max = APP_CO2_FAIR_MAX
+    .co2_red_above = APP_CO2_RED_ABOVE
 };
 
 static uint32_t now_ms(void) {
@@ -44,7 +41,8 @@ static void halt(EpdStatus status) {
 static bool home_assistant_configured(void) {
     return APP_HA_HOST[0] != '\0' && APP_HA_TOKEN[0] != '\0' &&
            APP_HA_TEMPERATURE[0] != '\0' && APP_HA_HUMIDITY[0] != '\0' &&
-           APP_HA_CO2[0] != '\0' && APP_HA_PM25[0] != '\0';
+           APP_HA_CO2[0] != '\0' && APP_HA_PM25[0] != '\0' &&
+           APP_HA_EXTERNAL_TEMPERATURE[0] != '\0';
 }
 
 static void probe_wifi(void) {
@@ -81,7 +79,8 @@ static bool fetch_reading(Reading *reading) {
         .temperature = APP_HA_TEMPERATURE,
         .humidity = APP_HA_HUMIDITY,
         .co2 = APP_HA_CO2,
-        .pm25 = APP_HA_PM25
+        .pm25 = APP_HA_PM25,
+        .external_temperature = APP_HA_EXTERNAL_TEMPERATURE
     };
     HomeAssistantReading value;
     HomeAssistantStatus status = home_assistant_read(&config, &value);
@@ -96,16 +95,18 @@ static bool fetch_reading(Reading *reading) {
     reading->humidity = value.humidity;
     reading->co2 = value.co2;
     reading->pm25 = value.pm25;
+    reading->external_temperature_tenths = value.external_temperature_tenths;
     reading->hour = value.hour;
     reading->minute = value.minute;
-    printf("[%lu ms] HOME_ASSISTANT_OK time=%02d:%02d temperature=%d humidity=%d co2=%d pm25=%d\n",
+    printf("[%lu ms] HOME_ASSISTANT_OK time=%02d:%02d temperature=%d humidity=%d co2=%d pm25=%d external_temperature=%d\n",
            now_ms(),
            reading->hour,
            reading->minute,
            reading->temperature_tenths,
            reading->humidity,
            reading->co2,
-           reading->pm25);
+           reading->pm25,
+           reading->external_temperature_tenths);
     return true;
 }
 

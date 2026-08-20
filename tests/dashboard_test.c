@@ -18,10 +18,8 @@ int main(void) {
     DashboardConfig config = {
         .title = "INDOOR AIR",
         .updated = "ACT",
-        .status = "STATUS",
-        .good = "GOOD",
-        .fair = "FAIR",
-        .high = "HIGH",
+        .external_temperature = "EXT TEMP",
+        .external_temperature_unit = "C",
         .co2 = "CO2",
         .co2_unit = "PPM",
         .temperature = "TEMP",
@@ -30,14 +28,14 @@ int main(void) {
         .humidity_unit = "%",
         .pm25 = "PM2.5",
         .pm25_unit = "UG/M3",
-        .co2_good_max = 800,
-        .co2_fair_max = 1200
+        .co2_red_above = 1000
     };
     Reading valid = {
         .temperature_tenths = 234,
         .humidity = 48,
         .co2 = 612,
         .pm25 = 14,
+        .external_temperature_tenths = 187,
         .hour = 10,
         .minute = 24
     };
@@ -55,6 +53,8 @@ int main(void) {
     assert(pixel(dashboard.red, 10, 29));
     assert(pixel(dashboard.black, 132, 40));
     assert(!pixel(dashboard.red, 132, 40));
+    assert(pixel(dashboard.black, 8, 40));
+    assert(!pixel(dashboard.red, 8, 40));
 
     Dashboard next;
     Reading changed = valid;
@@ -89,7 +89,19 @@ int main(void) {
                              customized.red,
                              &region));
 
-    config.co2_fair_max = config.co2_good_max;
+    Reading threshold_co2 = valid;
+    threshold_co2.co2 = 1000;
+    assert(dashboard_draw(&customized, &threshold_co2, &config));
+    assert(pixel(customized.black, 8, 40));
+    assert(!pixel(customized.red, 8, 40));
+
+    Reading high_co2 = valid;
+    high_co2.co2 = 1001;
+    assert(dashboard_draw(&customized, &high_co2, &config));
+    assert(!pixel(customized.black, 8, 40));
+    assert(pixel(customized.red, 8, 40));
+
+    config.co2_red_above = -1;
     assert(!dashboard_draw(&dashboard, &valid, &config));
     return 0;
 }

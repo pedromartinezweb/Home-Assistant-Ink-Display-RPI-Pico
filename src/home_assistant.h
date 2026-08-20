@@ -11,6 +11,7 @@ typedef struct {
     const char *humidity;
     const char *co2;
     const char *pm25;
+    const char *external_temperature;
 } HomeAssistantConfig;
 
 typedef struct {
@@ -18,6 +19,7 @@ typedef struct {
     int humidity;
     int co2;
     int pm25;
+    int external_temperature_tenths;
     int hour;
     int minute;
     int second;

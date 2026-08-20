@@ -338,6 +338,7 @@ HomeAssistantStatus home_assistant_read(const HomeAssistantConfig *config,
     double humidity;
     double co2;
     double pm25;
+    double external_temperature;
     HomeAssistantStatus status = read_value(config, config->temperature, &temperature);
     if (status == HOME_ASSISTANT_OK) {
         status = read_value(config, config->humidity, &humidity);
@@ -348,6 +349,9 @@ HomeAssistantStatus home_assistant_read(const HomeAssistantConfig *config,
     if (status == HOME_ASSISTANT_OK) {
         status = read_value(config, config->pm25, &pm25);
     }
+    if (status == HOME_ASSISTANT_OK) {
+        status = read_value(config, config->external_temperature, &external_temperature);
+    }
     if (status != HOME_ASSISTANT_OK) {
         return status;
     }
@@ -356,6 +360,7 @@ HomeAssistantStatus home_assistant_read(const HomeAssistantConfig *config,
     reading->humidity = round_value(humidity);
     reading->co2 = round_value(co2);
     reading->pm25 = round_value(pm25);
+    reading->external_temperature_tenths = round_value(external_temperature * 10.0);
     if (!parse_time(&reading->hour, &reading->minute, &reading->second)) {
         return HOME_ASSISTANT_RESPONSE_ERROR;
     }

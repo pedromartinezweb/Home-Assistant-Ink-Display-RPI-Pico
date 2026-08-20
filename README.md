@@ -2,7 +2,7 @@
 
 A low-power environmental dashboard for Home Assistant built with a Raspberry Pi Pico W and a 2.13-inch WeActStudio tri-color e-paper display.
 
-The firmware is written in C using the Raspberry Pi Pico SDK. It does not use Arduino or external graphics libraries. It retrieves temperature, humidity, CO2, and PM2.5 values from the local Home Assistant REST API, and the last image remains visible even when the display is unpowered.
+The firmware is written in C using the Raspberry Pi Pico SDK. It does not use Arduino or external graphics libraries. It retrieves indoor temperature, outdoor temperature, humidity, CO2, and PM2.5 values from the local Home Assistant REST API, and the last image remains visible even when the display is unpowered.
 
 ![RP2040 Home Assistant e-paper dashboard](docs/rp2040-ink-home-assistant.jpg)
 
@@ -10,7 +10,8 @@ The firmware is written in C using the Raspberry Pi Pico SDK. It does not use Ar
 
 - UI optimized for a 250 x 122 pixel black, white, and red display.
 - Timestamp of the latest reading received from Home Assistant.
-- Automatic CO2 status: `GOOD`, `FAIR`, or `HIGH`.
+- Outdoor temperature from a configurable Home Assistant entity.
+- CO2 shown in red only above a configurable threshold.
 - Wi-Fi enabled only while retrieving data.
 - SSD1680 deep sleep after each display update.
 - Last valid reading preserved if Wi-Fi or Home Assistant fails.
@@ -78,6 +79,7 @@ Edit `src/config_local.h`:
 #define APP_HA_HUMIDITY "sensor.humidity"
 #define APP_HA_CO2 "sensor.co2"
 #define APP_HA_PM25 "sensor.pm25"
+#define APP_HA_EXTERNAL_TEMPERATURE "sensor.external_temperature"
 #define APP_REFRESH_SECONDS 300
 ```
 
@@ -90,10 +92,8 @@ Every label shown on the e-paper display is configured in the same file:
 ```c
 #define APP_UI_TITLE "INDOOR AIR"
 #define APP_UI_UPDATED "ACT"
-#define APP_UI_STATUS "STATUS"
-#define APP_UI_GOOD "GOOD"
-#define APP_UI_FAIR "FAIR"
-#define APP_UI_HIGH "HIGH"
+#define APP_UI_EXTERNAL_TEMPERATURE "EXT TEMP"
+#define APP_UI_EXTERNAL_TEMPERATURE_UNIT "C"
 #define APP_UI_CO2 "CO2"
 #define APP_UI_CO2_UNIT "PPM"
 #define APP_UI_TEMPERATURE "TEMP"
@@ -102,11 +102,12 @@ Every label shown on the e-paper display is configured in the same file:
 #define APP_UI_HUMIDITY_UNIT "%"
 #define APP_UI_PM25 "PM2.5"
 #define APP_UI_PM25_UNIT "UG/M3"
-#define APP_CO2_GOOD_MAX 800
-#define APP_CO2_FAIR_MAX 1200
+#define APP_CO2_RED_ABOVE 1000
 ```
 
-The built-in font supports uppercase `A-Z`, digits, spaces, `.`, `:`, `%`, and `/`. Keep metric labels at 12 characters or fewer and status values at 8 characters or fewer. The dashboard validates configuration limits before drawing to prevent text from overflowing the display.
+`APP_CO2_RED_ABOVE` uses a strict comparison: with the default value, readings up to and including `1000 ppm` are black, while readings above `1000 ppm` are red.
+
+The built-in font supports uppercase `A-Z`, digits, spaces, `.`, `:`, `%`, and `/`. Keep metric labels at 12 characters or fewer. The dashboard validates configuration limits before drawing to prevent text from overflowing the display.
 
 Create a token from your Home Assistant profile under **Long-Lived Access Tokens**. Each configured entity must return a numeric state.
 
