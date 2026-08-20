@@ -32,10 +32,10 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     )
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/config"})
 @websocket_api.async_response
 async def websocket_config(hass, connection, msg) -> None:
-    connection.require_admin()
     entries = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         source = entry.options or entry.data.get(CONF_LAYOUT, {})
@@ -49,6 +49,7 @@ async def websocket_config(hass, connection, msg) -> None:
     connection.send_result(msg["id"], {"entries": entries})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/save",
@@ -58,7 +59,6 @@ async def websocket_config(hass, connection, msg) -> None:
 )
 @websocket_api.async_response
 async def websocket_save(hass, connection, msg) -> None:
-    connection.require_admin()
     entry = hass.config_entries.async_get_entry(msg["entry_id"])
     if entry is None or entry.domain != DOMAIN:
         connection.send_error(msg["id"], "not_found", "Display not found")

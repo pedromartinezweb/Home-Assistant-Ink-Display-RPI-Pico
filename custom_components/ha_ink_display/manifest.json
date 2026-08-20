@@ -8,6 +8,6 @@
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/pedromartinezweb/Home-Assistant-Ink-Display-RPI-Pico/issues",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "zeroconf": ["_ha-ink._tcp.local."]
 }
