@@ -32,6 +32,8 @@ The integration includes light and dark mode icons on Home Assistant 2026.3 or n
 
 After pairing the hardware, open **Ink Display** in the Home Assistant sidebar. This is the only place you need to manage the screen.
 
+![Home Assistant Ink Display visual editor](docs/ha-ink-display-editor.png)
+
 You can:
 
 - Add one to four entities to each of two rows, up to eight in total.
