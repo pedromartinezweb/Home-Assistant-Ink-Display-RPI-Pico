@@ -4,10 +4,12 @@ This folder contains a two-piece enclosure for the WeActStudio 2.13-inch e-paper
 
 ## Files
 
-- `rp2040-ink-case-print-plate.stl`: ready-to-slice plate containing the front enclosure and rear cover.
+- `rp2040-ink-case-body.stl`: front enclosure only.
+- `rp2040-ink-case-lid.stl`: rear cover only.
+- `rp2040-ink-case-print-plate.stl`: compact ready-to-slice plate containing both parts.
 - `rp2040-ink-case.scad`: editable parametric OpenSCAD source.
 
-The STL contains two separate parts. Import it into your slicer and keep the scale at 100%.
+Import the STL you need and keep the scale at 100%. The individual body and lid files are easier to inspect or place manually. The print plate keeps only 3 mm between both parts.
 
 ## Print settings
 
@@ -32,7 +34,7 @@ The STL contains two separate parts. Import it into your slicer and keep the sca
 
 ## Dimensions and fit
 
-The enclosure uses the official WeActStudio module dimensions of 72 x 30 mm, a 66.4 x 24 mm mounting pattern, and the official Pico W board size of 51 x 21 mm.
+The enclosure uses the official WeActStudio module dimensions of 72 x 30 mm, four 3.2 mm mounting holes, a 66.4 x 24.4 mm center-to-center mounting pattern, and the official Pico W board size of 51 x 21 mm.
 
 The rear cover has 0.25 mm clearance on each side. If your printer produces tight parts, increase `lid_clearance` in the OpenSCAD source to `0.35` or `0.40`, regenerate the STL, and print again.
 

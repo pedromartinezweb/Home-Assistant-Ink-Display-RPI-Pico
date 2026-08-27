@@ -125,11 +125,12 @@ The installer asks only for:
 
 1. Pico W or Pico 2 W.
 2. Wi-Fi name.
-3. Wi-Fi password, hidden while typing.
+3. Optional fallback Wi-Fi name (useful when two SSIDs share the same LAN).
+4. Wi-Fi password, hidden while typing.
 
 It does not ask for a Home Assistant URL or token. The generated file is stored in `firmware`, and the installer attempts to upload it to the connected Pico.
 
-If automatic upload is unavailable:
+For the first installation only:
 
 1. Disconnect the Pico from USB.
 2. Hold `BOOTSEL` while reconnecting USB.
@@ -146,10 +147,12 @@ After its first complete cleaning cycle, the screen shows a six-digit pairing co
 1. Open **Settings → Devices & services** in Home Assistant.
 2. Select the automatically discovered display, or select **Add integration → Home Assistant Ink Display**.
 3. Enter the six-digit code shown on the screen.
-4. Open **Ink Display** in the sidebar.
-5. Add the required entities and select **Save changes**.
+4. Choose the title, update interval, and number of cells in each row.
+5. Select the Home Assistant entity displayed in every cell and finish the wizard.
 
 No IP address is required. If several unpaired displays are available, Home Assistant shows a device list after validating the pairing code.
+
+To change the layout later, open the device in **Settings → Devices & services** and select **Visit**, or open **Ink Display** in the sidebar. The editor previews the two rows and saves all entity changes together.
 
 ## How updates work
 
@@ -161,17 +164,29 @@ Home Assistant watches only the configured entities. When one changes, it keeps 
 - Unavailable or non-numeric values appear as `N/A`.
 - If Wi-Fi or Home Assistant is unavailable, the previous e-paper image remains visible.
 
+After pairing or rebooting, the Pico checks every five seconds until it receives its first valid frame. It then uses the interval selected in Home Assistant. This avoids leaving the pairing screen visible while waiting for the first regular update.
+
 The 60-second minimum protects the tri-color panel from continuous updates. Five minutes is recommended for environmental sensors.
 
-## Low-power behavior
+## Power and USB updates
 
-The standard build is the low-power profile:
+The standard build enables the Raspberry Pi USB maintenance interface. With the Pico connected by a USB data cable, `setup.sh` uploads future firmware updates automatically through `picotool`; it resets the Pico into its bootloader in software and installs the UF2 without using `BOOTSEL` or `RUN`.
 
-- USB serial and diagnostic formatting are removed from production firmware.
+The first installation cannot be automated, because the existing firmware must already contain this interface. Use `BOOTSEL` once to install this version. Every later update is automatic.
+
+USB maintenance keeps the USB controller awake so the computer can request the update. To use the lowest-power profile for a permanently installed, battery-powered display, build with it disabled:
+
+```sh
+EPAPER_USB_MAINTENANCE=OFF ./build.sh pico_w
+```
+
+The low-power profile:
+
+- USB serial, USB maintenance, and diagnostic formatting are removed from production firmware.
 - Wi-Fi is initialized only for a check and shut down immediately afterward.
 - The e-paper controller enters deep sleep after every write.
 - The Pico uses the SDK dormant mode between checks.
-- A four-second dormant slice preserves the long-press `BOOTSEL` factory-reset function while avoiding frequent CPU wake-ups.
+- A one-second dormant slice provides reliable `BOOTSEL` long-press detection while keeping the CPU asleep between checks.
 
 The Raspberry Pi SDK documents rough board-level measurements around 0.95 mA for an RP2040 Pico in dormant mode and 3.3 mA for an RP2350 Pico 2 in dormant mode. These are reference figures, not measurements of this complete device; the W radio package, regulator, e-paper module, supply voltage, and wiring affect the real total.
 
@@ -181,11 +196,11 @@ For USB diagnostics, build the separate debug profile:
 EPAPER_USB_LOGS=ON ./build.sh pico_w
 ```
 
-The debug profile keeps USB logging available and uses ordinary timed sleep, so it consumes more power. The normal setup scripts always build the low-power profile.
+The debug profile adds USB logs. The normal setup script builds the USB-maintenance profile so it can update an already-installed display automatically.
 
 ## Pair again or change Wi-Fi
 
-To clear only Home Assistant pairing, hold `BOOTSEL` for about five seconds while the firmware is running. The Pico erases its device secret, restarts, and shows a new pairing code. A short press does nothing. Pairing again reconnects the existing Home Assistant device and preserves its layout.
+To clear only Home Assistant pairing, hold `BOOTSEL` for at least five seconds while the firmware is running. The Pico erases its device secret and immediately shows a new pairing code without requiring a restart. A short press does nothing. Pairing again reconnects the existing Home Assistant device and preserves its layout.
 
 To change Wi-Fi, run the setup tool again and install the new UF2. Each build gets a new provisioning identifier and clears the previous pairing.
 
@@ -194,7 +209,7 @@ To change Wi-Fi, run the setup tool again and install the new UF2. Each build ge
 | Problem | What to check |
 |---|---|
 | The installer cannot install tools | Confirm Internet access and accept the administrator prompt |
-| No Pico drive appears | Use a USB data cable and hold `BOOTSEL` before connecting USB |
+| The first upload cannot find a Pico | Use a USB data cable and hold `BOOTSEL` while connecting it. Later uploads are performed automatically. |
 | The display never changes | Check every wire, 3.3 V power, and the `SB1`/`SB2` SPI setting |
 | Pairing code appears but discovery fails | Confirm both devices use the same LAN and mDNS is not blocked |
 | Pairing fails | Enter the current code before restarting the Pico |
@@ -202,7 +217,7 @@ To change Wi-Fi, run the setup tool again and install the new UF2. Each build ge
 | Home Assistant reports local HTTP is required | Configure a local HTTP internal URL in Home Assistant |
 | A cell shows `N/A` | The entity is unavailable, unknown, or not numeric |
 | The screen flashes several colors | This is the normal full waveform of the tri-color panel |
-| USB serial logs are missing | The standard low-power build disables them; use the debug profile |
+| USB serial logs are missing | The standard build keeps USB firmware updates but disables logs; use the debug profile |
 
 ## Security
 

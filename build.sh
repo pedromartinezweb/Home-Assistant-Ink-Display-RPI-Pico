@@ -4,6 +4,7 @@ set -eu
 project_dir=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
 board=${1:-pico_w}
 usb_logs=${EPAPER_USB_LOGS:-OFF}
+usb_maintenance=${EPAPER_USB_MAINTENANCE:-ON}
 
 case "$board" in
     pico_w|pico2_w) ;;
@@ -55,5 +56,6 @@ if [ "$spec_file" = "nosys.specs" ] || [ ! -f "$spec_file" ]; then
     exit 1
 fi
 
-cmake -S "$project_dir" -B "$build_dir" -G Ninja -DPICO_BOARD="$board" -DCMAKE_BUILD_TYPE=Release -DEPAPER_USB_LOGS="$usb_logs"
+cmake -E remove_directory "$build_dir"
+cmake -S "$project_dir" -B "$build_dir" -G Ninja -DPICO_SDK_PATH="$PICO_SDK_PATH" -DPICO_BOARD="$board" -DCMAKE_BUILD_TYPE=Release -DEPAPER_USB_LOGS="$usb_logs" -DEPAPER_USB_MAINTENANCE="$usb_maintenance"
 cmake --build "$build_dir"

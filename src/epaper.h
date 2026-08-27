@@ -28,6 +28,7 @@ typedef struct {
 } EpaperResult;
 
 EpdStatus epaper_open(Epaper *epaper, const EpdConfig *config);
+void epaper_force_full(Epaper *epaper);
 EpaperResult epaper_present(Epaper *epaper, const uint8_t *black, const uint8_t *red);
 
 #endif

@@ -15,6 +15,7 @@ project(ha_ink_display C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 option(EPAPER_USB_LOGS "Enable USB logs" OFF)
+option(EPAPER_USB_MAINTENANCE "Enable USB software flashing support" ON)
 
 pico_sdk_init()
 
@@ -51,8 +52,8 @@ target_link_libraries(ha_ink_display
     pico_low_power
     pico_rand
     pico_unique_id
+    pico_bootsel_via_double_reset
     hardware_flash
-    hardware_watchdog
 )
 target_compile_options(ha_ink_display PRIVATE -Wall -Wextra -Werror)
 set_source_files_properties(
@@ -62,9 +63,19 @@ set_source_files_properties(
 
 if (EPAPER_USB_LOGS)
     target_compile_definitions(ha_ink_display PRIVATE EPAPER_USB_LOGS=1)
-    pico_enable_stdio_usb(ha_ink_display 1)
 else()
     target_compile_definitions(ha_ink_display PRIVATE EPAPER_USB_LOGS=0)
+endif()
+
+if (EPAPER_USB_MAINTENANCE)
+    target_compile_definitions(ha_ink_display PRIVATE EPAPER_USB_MAINTENANCE=1)
+else()
+    target_compile_definitions(ha_ink_display PRIVATE EPAPER_USB_MAINTENANCE=0)
+endif()
+
+if (EPAPER_USB_LOGS OR EPAPER_USB_MAINTENANCE)
+    pico_enable_stdio_usb(ha_ink_display 1)
+else()
     pico_enable_stdio_usb(ha_ink_display 0)
 endif()
 pico_enable_stdio_uart(ha_ink_display 0)

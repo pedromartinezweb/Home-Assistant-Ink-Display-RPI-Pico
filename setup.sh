@@ -71,7 +71,8 @@ upload_firmware() {
         return 0
     fi
     printf '%s\n' "Automatic upload could not find a Pico."
-    printf '%s\n' "Hold BOOTSEL while connecting it, then copy the UF2 to the RPI-RP2 or RP2350 drive."
+    printf '%s\n' "For the first installation, hold BOOTSEL while connecting USB, then copy the UF2 to the RPI-RP2 or RP2350 drive."
+    printf '%s\n' "After this firmware is installed, later uploads use the USB software update interface automatically."
     return 1
 }
 
@@ -145,6 +146,13 @@ if [ -z "$wifi_ssid" ] || [ "${#wifi_ssid}" -gt 32 ]; then
     exit 1
 fi
 
+printf '%s' "Optional fallback Wi-Fi name (SSID, press Enter to skip): "
+read -r wifi_ssid_fallback
+if [ "${#wifi_ssid_fallback}" -gt 32 ]; then
+    printf '%s\n' "The fallback Wi-Fi name must contain at most 32 characters." >&2
+    exit 1
+fi
+
 printf '%s' "Wi-Fi password: "
 stty -echo
 trap 'stty echo' EXIT INT TERM
@@ -158,6 +166,7 @@ if [ "${#wifi_password}" -lt 8 ] || [ "${#wifi_password}" -gt 63 ]; then
 fi
 
 escaped_ssid=$(printf '%s' "$wifi_ssid" | sed 's/\\/\\\\/g; s/"/\\"/g')
+escaped_ssid_fallback=$(printf '%s' "$wifi_ssid_fallback" | sed 's/\\/\\\\/g; s/"/\\"/g')
 escaped_password=$(printf '%s' "$wifi_password" | sed 's/\\/\\\\/g; s/"/\\"/g')
 provisioning_id=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
 config_file="$project_dir/src/config_local.h"
@@ -168,6 +177,7 @@ umask 077
     printf '%s\n' '#define CONFIG_LOCAL_H'
     printf '\n'
     printf '#define APP_WIFI_SSID "%s"\n' "$escaped_ssid"
+    printf '#define APP_WIFI_SSID_FALLBACK "%s"\n' "$escaped_ssid_fallback"
     printf '#define APP_WIFI_PASSWORD "%s"\n' "$escaped_password"
     printf '#define APP_PROVISIONING_ID %sU\n' "$provisioning_id"
     printf '\n'

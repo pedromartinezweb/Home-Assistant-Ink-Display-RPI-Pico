@@ -1,6 +1,8 @@
 #include "app.h"
 
+#include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "config.h"
 #include "frame.h"
@@ -9,6 +11,8 @@
 #include "log.h"
 #include "pair_server.h"
 #include "pico/rand.h"
+#include "pico/stdio.h"
+#include "pico/stdio_usb.h"
 #include "pico/stdlib.h"
 #include "pico/unique_id.h"
 #include "wifi_session.h"
@@ -16,11 +20,47 @@
 enum {
     WIFI_TIMEOUT_MS = 20000,
     RETRY_SECONDS = 60,
+    INITIAL_FRAME_RETRY_SECONDS = 5,
     DEFAULT_INTERVAL_SECONDS = 300
 };
 
 static uint32_t now_ms(void) {
     return to_ms_since_boot(get_absolute_time());
+}
+
+static void start_usb_maintenance(void) {
+#if EPAPER_USB_MAINTENANCE || EPAPER_USB_LOGS
+    stdio_init_all();
+#endif
+#if EPAPER_USB_LOGS
+    absolute_time_t deadline = make_timeout_time_ms(5000);
+    while (!stdio_usb_connected() && !time_reached(deadline)) {
+        sleep_ms(10);
+    }
+#endif
+}
+
+static bool open_wifi(WifiSession *wifi, WifiSessionMode mode) {
+    const char *ssids[] = {APP_WIFI_SSID, APP_WIFI_SSID_FALLBACK};
+    for (size_t index = 0; index < sizeof(ssids) / sizeof(ssids[0]); ++index) {
+        if (ssids[index][0] == '\0' ||
+            (index > 0 && strcmp(ssids[index], ssids[0]) == 0)) {
+            continue;
+        }
+        WifiSessionStatus status = wifi_session_open(wifi,
+                                                      ssids[index],
+                                                      APP_WIFI_PASSWORD,
+                                                      WIFI_TIMEOUT_MS,
+                                                      mode);
+        if (status == WIFI_SESSION_OK) {
+            return true;
+        }
+        APP_LOG("[%lu ms] WIFI_SSID_FAILED index=%u status=%d\n",
+                now_ms(),
+                (unsigned int)index,
+                status);
+    }
+    return false;
 }
 
 static void halt(EpdStatus status) {
@@ -43,44 +83,80 @@ static void present(App *app, const uint8_t *black, const uint8_t *red) {
     }
 }
 
-static void pairing_screen(App *app, uint32_t code) {
-    char text[7];
-    snprintf(text, sizeof(text), "%06lu", (unsigned long)code);
-    frame_clear(app->dashboard.black, false);
-    frame_clear(app->dashboard.red, false);
-    frame_fill_rect_landscape(app->dashboard.black, 1, 1, 248, 30, true);
-    frame_text_landscape_color(app->dashboard.black, 8, 10, "HOME ASSISTANT", 1, false);
-    frame_text_landscape(app->dashboard.black, 8, 42, "PAIR INTEGRATION", 2);
-    frame_text_landscape(app->dashboard.black, 8, 69, "CODE", 1);
-    frame_text_landscape(app->dashboard.red, 52, 65, text, 4);
-    frame_text_landscape(app->dashboard.black, 8, 104, "WAITING FOR HOME ASSISTANT", 1);
-    present(app, app->dashboard.black, app->dashboard.red);
+static void present_pairing(App *app, const uint8_t *black, const uint8_t *red) {
+    EpaperResult result = epaper_present(&app->epaper, black, red);
+    APP_LOG("[%lu ms] PAIRING_PRESENT mode=%d status=%s bytes=%lu busy=%lu\n",
+            now_ms(),
+            result.mode,
+            epd_status_name(result.driver.status),
+            (unsigned long)result.bytes,
+            (unsigned long)result.driver.busy_ms);
 }
 
-static bool pair_device(App *app,
+static void display_text(char *destination, size_t length, const char *source) {
+    if (destination == NULL || length == 0) {
+        return;
+    }
+    size_t index = 0;
+    while (source != NULL && source[index] != '\0' && index + 1 < length) {
+        destination[index] = (char)toupper((unsigned char)source[index]);
+        ++index;
+    }
+    destination[index] = '\0';
+}
+
+static void pairing_screen(App *app, uint32_t code, const WifiSession *wifi) {
+    char text[7];
+    char ssid[WIFI_SESSION_SSID_MAX_LENGTH + 1];
+    char ip_address[WIFI_SESSION_IP_ADDRESS_LENGTH];
+    bool connected = wifi != NULL && wifi->active;
+    snprintf(text, sizeof(text), "%06lu", (unsigned long)code);
+    display_text(ssid, sizeof(ssid), connected ? wifi->ssid : "WAITING");
+    display_text(ip_address,
+                 sizeof(ip_address),
+                 connected ? wifi->ip_address : "WAITING");
+    frame_clear(app->dashboard.black, false);
+    frame_clear(app->dashboard.red, false);
+    frame_fill_rect_landscape(app->dashboard.black, 1, 1, 248, 24, true);
+    frame_text_landscape_color(app->dashboard.black, 8, 10, "HOME ASSISTANT", 1, false);
+    if (connected) {
+        frame_text_landscape(app->dashboard.black, 8, 33, "PAIR INTEGRATION", 2);
+        frame_text_landscape(app->dashboard.black, 8, 58, "CODE", 1);
+        frame_text_landscape(app->dashboard.red, 45, 52, text, 4);
+        frame_text_landscape(app->dashboard.black, 8, 88, "SSID:", 1);
+        frame_text_landscape(app->dashboard.black, 43, 88, ssid, 1);
+        frame_text_landscape(app->dashboard.black, 8, 104, "IP:", 1);
+        frame_text_landscape(app->dashboard.black, 29, 104, ip_address, 1);
+    }
+    present_pairing(app, app->dashboard.black, app->dashboard.red);
+}
+
+static void pair_device(App *app,
                         const char *device_id,
                         uint32_t provisioning_id,
                         DeviceSettings *settings) {
     uint32_t code = (uint32_t)(get_rand_64() % 900000U) + 100000U;
-    bool ready = false;
+    bool displayed = false;
     while (!settings->paired) {
         WifiSession wifi;
-        WifiSessionStatus wifi_status = wifi_session_open(&wifi,
-                                                           APP_WIFI_SSID,
-                                                           APP_WIFI_PASSWORD,
-                                                           WIFI_TIMEOUT_MS);
-        if (wifi_status != WIFI_SESSION_OK) {
-            APP_LOG("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
-            factory_reset_sleep(RETRY_SECONDS * 1000U);
+        if (!open_wifi(&wifi, WIFI_SESSION_PAIRING)) {
+            APP_LOG("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), WIFI_SESSION_ERROR_CONNECT);
+            if (factory_reset_sleep(RETRY_SECONDS * 1000U)) {
+                code = (uint32_t)(get_rand_64() % 900000U) + 100000U;
+                displayed = false;
+            }
             continue;
         }
-        if (!ready) {
-            pairing_screen(app, code);
-            APP_LOG("[%lu ms] PAIRING_READY device=%s code=%06lu\n",
-                   now_ms(),
-                   device_id,
-                   (unsigned long)code);
-            ready = true;
+        if (!displayed) {
+            epaper_force_full(&app->epaper);
+            pairing_screen(app, code, &wifi);
+            APP_LOG("[%lu ms] PAIRING_READY device=%s code=%06lu ssid=%s ip=%s\n",
+                    now_ms(),
+                    device_id,
+                    (unsigned long)code,
+                    wifi.ssid,
+                    wifi.ip_address);
+            displayed = true;
         }
         PairServerConfig config = {
             .device_id = device_id,
@@ -92,11 +168,10 @@ static bool pair_device(App *app,
         wifi_session_close(&wifi);
         if (paired) {
             APP_LOG("[%lu ms] PAIRING_OK device=%s\n", now_ms(), device_id);
-            return true;
+            return;
         }
         APP_LOG("[%lu ms] PAIRING_WAIT device=%s\n", now_ms(), device_id);
     }
-    return true;
 }
 
 static bool update_display(App *app, const InkFrame *frame) {
@@ -105,6 +180,53 @@ static bool update_display(App *app, const InkFrame *frame) {
     }
     present(app, app->dashboard.black, app->dashboard.red);
     return true;
+}
+
+static void run_paired(App *app, DeviceSettings *settings) {
+    uint64_t revision = 0;
+    uint32_t interval_seconds = INITIAL_FRAME_RETRY_SECONDS;
+    for (;;) {
+        WifiSession wifi;
+        if (!open_wifi(&wifi, WIFI_SESSION_POLLING)) {
+            APP_LOG("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), WIFI_SESSION_ERROR_CONNECT);
+            if (factory_reset_sleep(RETRY_SECONDS * 1000U)) {
+                return;
+            }
+            continue;
+        }
+
+        InkFrame next;
+        InkClientStatus client_status = ink_client_poll(settings, revision, &next);
+        wifi_session_close(&wifi);
+        if (client_status == INK_CLIENT_UPDATED) {
+            if (!update_display(app, &next)) {
+                APP_LOG("[%lu ms] FRAME_REJECTED revision=%llu\n",
+                        now_ms(),
+                        (unsigned long long)next.revision);
+            } else {
+                revision = next.revision;
+                interval_seconds = next.interval_seconds;
+                APP_LOG("[%lu ms] FRAME_OK revision=%llu items=%u interval=%lu\n",
+                        now_ms(),
+                        (unsigned long long)revision,
+                        (unsigned int)next.data.count,
+                        (unsigned long)interval_seconds);
+            }
+        } else if (client_status == INK_CLIENT_UNCHANGED) {
+            APP_LOG("[%lu ms] FRAME_UNCHANGED revision=%llu\n",
+                    now_ms(),
+                    (unsigned long long)revision);
+            if (revision == 0) {
+                interval_seconds = INITIAL_FRAME_RETRY_SECONDS;
+            }
+        } else {
+            APP_LOG("[%lu ms] POLL_ERROR status=%d\n", now_ms(), client_status);
+            interval_seconds = RETRY_SECONDS;
+        }
+        if (factory_reset_sleep(interval_seconds * 1000U)) {
+            return;
+        }
+    }
 }
 
 void app_run(App *app, const EpdConfig *display) {
@@ -116,54 +238,17 @@ void app_run(App *app, const EpdConfig *display) {
     if (status != EPD_OK) {
         halt(status);
     }
+    start_usb_maintenance();
+    factory_reset_boot();
 
     char device_id[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2 + 1];
     pico_get_unique_board_id_string(device_id, sizeof(device_id));
-    DeviceSettings settings;
-    device_store_load(APP_PROVISIONING_ID, &settings);
-    if (!settings.paired && !pair_device(app, device_id, APP_PROVISIONING_ID, &settings)) {
-        halt(EPD_ERROR_ARGUMENT);
-    }
-
-    uint64_t revision = 0;
-    uint32_t interval_seconds = DEFAULT_INTERVAL_SECONDS;
     for (;;) {
-        WifiSession wifi;
-        WifiSessionStatus wifi_status = wifi_session_open(&wifi,
-                                                           APP_WIFI_SSID,
-                                                           APP_WIFI_PASSWORD,
-                                                           WIFI_TIMEOUT_MS);
-        if (wifi_status != WIFI_SESSION_OK) {
-            APP_LOG("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), wifi_status);
-            factory_reset_sleep(RETRY_SECONDS * 1000U);
-            continue;
+        DeviceSettings settings;
+        device_store_load(APP_PROVISIONING_ID, &settings);
+        if (!settings.paired) {
+            pair_device(app, device_id, APP_PROVISIONING_ID, &settings);
         }
-
-        InkFrame next;
-        InkClientStatus client_status = ink_client_poll(&settings, revision, &next);
-        wifi_session_close(&wifi);
-        if (client_status == INK_CLIENT_UPDATED) {
-            if (!update_display(app, &next)) {
-                APP_LOG("[%lu ms] FRAME_REJECTED revision=%llu\n",
-                       now_ms(),
-                       (unsigned long long)next.revision);
-            } else {
-                revision = next.revision;
-                interval_seconds = next.interval_seconds;
-                APP_LOG("[%lu ms] FRAME_OK revision=%llu items=%u interval=%lu\n",
-                       now_ms(),
-                       (unsigned long long)revision,
-                       (unsigned int)next.data.count,
-                       (unsigned long)interval_seconds);
-            }
-        } else if (client_status == INK_CLIENT_UNCHANGED) {
-            APP_LOG("[%lu ms] FRAME_UNCHANGED revision=%llu\n",
-                   now_ms(),
-                   (unsigned long long)revision);
-        } else {
-            APP_LOG("[%lu ms] POLL_ERROR status=%d\n", now_ms(), client_status);
-            interval_seconds = RETRY_SECONDS;
-        }
-        factory_reset_sleep(interval_seconds * 1000U);
+        run_paired(app, &settings);
     }
 }

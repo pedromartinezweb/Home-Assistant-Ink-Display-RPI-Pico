@@ -243,8 +243,10 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
                 else:
                     self._select_display(displays[0])
                     await self._set_device_id()
-                    self._layout = empty_layout()
-                    return await self._layout_complete()
+                    if self._existing_entry is not None:
+                        self._layout = empty_layout()
+                        return await self._layout_complete()
+                    return await self.async_step_dashboard()
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({vol.Required("code"): selector.TextSelector()}),
@@ -256,8 +258,10 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
             display = self._displays[user_input[CONF_DISPLAY]]
             self._select_display(display)
             await self._set_device_id()
-            self._layout = empty_layout()
-            return await self._layout_complete()
+            if self._existing_entry is not None:
+                self._layout = empty_layout()
+                return await self._layout_complete()
+            return await self.async_step_dashboard()
         options = [
             {"value": item.device_id, "label": item.label}
             for item in self._displays.values()
@@ -283,8 +287,10 @@ class InkConfigFlow(LayoutMixin, config_entries.ConfigFlow, domain=DOMAIN):
             except (TypeError, ValueError):
                 errors["base"] = "invalid_code"
             else:
-                self._layout = empty_layout()
-                return await self._layout_complete()
+                if self._existing_entry is not None:
+                    self._layout = empty_layout()
+                    return await self._layout_complete()
+                return await self.async_step_dashboard()
         return self.async_show_form(
             step_id="pair",
             data_schema=vol.Schema({vol.Required("code"): selector.TextSelector()}),

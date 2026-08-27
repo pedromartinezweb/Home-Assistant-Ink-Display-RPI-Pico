@@ -45,7 +45,8 @@ function Upload-Firmware($Path) {
         return $true
     }
     Write-Host "Automatic upload could not find a Pico."
-    Write-Host "Hold BOOTSEL while connecting it, then copy the UF2 to the RPI-RP2 or RP2350 drive."
+    Write-Host "For the first installation, hold BOOTSEL while connecting USB, then copy the UF2 to the RPI-RP2 or RP2350 drive."
+    Write-Host "After this firmware is installed, later uploads use the USB software update interface automatically."
     return $false
 }
 
@@ -100,6 +101,11 @@ if ([string]::IsNullOrWhiteSpace($ssid) -or $ssid.Length -gt 32) {
     throw "The Wi-Fi name must contain between 1 and 32 characters."
 }
 
+$fallbackSsid = Read-Host "Optional fallback Wi-Fi name (SSID, press Enter to skip)"
+if ($fallbackSsid.Length -gt 32) {
+    throw "The fallback Wi-Fi name must contain at most 32 characters."
+}
+
 $securePassword = Read-Host "Wi-Fi password" -AsSecureString
 $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
 try {
@@ -113,6 +119,7 @@ if ($password.Length -lt 8 -or $password.Length -gt 63) {
 
 $ssidC = $ssid.Replace('\', '\\').Replace('"', '\"')
 $passwordC = $password.Replace('\', '\\').Replace('"', '\"')
+$fallbackSsidC = $fallbackSsid.Replace('\', '\\').Replace('"', '\"')
 $random = [Security.Cryptography.RandomNumberGenerator]::Create()
 $bytes = New-Object byte[] 4
 try {
@@ -129,6 +136,7 @@ $config = @(
     "#define CONFIG_LOCAL_H",
     "",
     "#define APP_WIFI_SSID `"$ssidC`"",
+    "#define APP_WIFI_SSID_FALLBACK `"$fallbackSsidC`"",
     "#define APP_WIFI_PASSWORD `"$passwordC`"",
     "#define APP_PROVISIONING_ID $($provisioningId)U",
     "",
@@ -145,7 +153,7 @@ $password = $null
 $env:PICO_SDK_PATH = $SdkDir
 $buildDir = Join-Path $ProjectDir "build-$board"
 cmake -E remove_directory $buildDir
-cmake -S $ProjectDir -B $buildDir -G Ninja -DPICO_BOARD=$board -DCMAKE_BUILD_TYPE=Release -DEPAPER_USB_LOGS=OFF
+cmake -S $ProjectDir -B $buildDir -G Ninja -DPICO_SDK_PATH=$SdkDir -DPICO_BOARD=$board -DCMAKE_BUILD_TYPE=Release -DEPAPER_USB_LOGS=OFF -DEPAPER_USB_MAINTENANCE=ON
 cmake --build $buildDir
 
 $firmwareDir = Join-Path $ProjectDir "firmware"
