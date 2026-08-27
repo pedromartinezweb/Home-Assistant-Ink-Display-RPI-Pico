@@ -1,23 +1,27 @@
 $fn = 48;
 
-case_width = 78;
-case_height = 36;
+part = "plate";
+pcb_width = 72;
+pcb_height = 30;
+pcb_clearance = 1;
 case_depth = 20;
 corner_radius = 3;
 front_thickness = 3;
 wall = 2;
+case_width = pcb_width + (wall + pcb_clearance) * 2;
+case_height = pcb_height + (wall + pcb_clearance) * 2;
 window_width = 60;
 window_height = 26;
 window_radius = 1;
 module_hole_x = 66.4;
-module_hole_y = 24;
+module_hole_y = 24.4;
 boss_diameter = 5;
 boss_height = 1.5;
 pilot_diameter = 1.6;
 lid_clearance = 0.25;
 lid_thickness = 2;
 lid_plug_height = 1.5;
-plate_gap = 8;
+plate_gap = 3;
 
 module rounded_prism(size, radius) {
     linear_extrude(height = size[2])
@@ -88,5 +92,11 @@ module lid() {
                 cylinder(d = 4, h = 1.05);
 }
 
-main_body();
-translate([0, case_height + plate_gap, 0]) lid();
+if (part == "body") {
+    main_body();
+} else if (part == "lid") {
+    lid();
+} else {
+    main_body();
+    translate([0, case_height + plate_gap, 0]) lid();
+}

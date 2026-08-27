@@ -28,6 +28,12 @@ EpdStatus epaper_open(Epaper *epaper, const EpdConfig *config) {
     return epd_open(&epaper->driver, config);
 }
 
+void epaper_force_full(Epaper *epaper) {
+    if (epaper != NULL) {
+        epaper->has_frame = false;
+    }
+}
+
 EpaperResult epaper_present(Epaper *epaper, const uint8_t *black, const uint8_t *red) {
     if (epaper == NULL || black == NULL || red == NULL || !epaper->driver.open) {
         return result(EPD_ERROR_ARGUMENT);

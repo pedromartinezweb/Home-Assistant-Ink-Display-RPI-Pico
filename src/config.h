@@ -11,6 +11,10 @@
 #define APP_WIFI_PASSWORD ""
 #endif
 
+#ifndef APP_WIFI_SSID_FALLBACK
+#define APP_WIFI_SSID_FALLBACK ""
+#endif
+
 #ifndef APP_PROVISIONING_ID
 #define APP_PROVISIONING_ID 0U
 #endif

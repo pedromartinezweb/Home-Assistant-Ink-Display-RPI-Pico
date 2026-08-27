@@ -26,6 +26,8 @@ typedef struct {
     bool complete;
 } PairServer;
 
+static bool mdns_initialized;
+
 static void close_client(PairServer *server) {
     if (server->client == NULL) {
         return;
@@ -182,7 +184,10 @@ static void service_text(struct mdns_service *service, void *context) {
 static bool publish(PairServer *server) {
     char hostname[40];
     snprintf(hostname, sizeof(hostname), "ha-ink-%s", server->config.device_id);
-    mdns_resp_init();
+    if (!mdns_initialized) {
+        mdns_resp_init();
+        mdns_initialized = true;
+    }
     if (mdns_resp_add_netif(netif_default, hostname) != ERR_OK) {
         return false;
     }
@@ -224,7 +229,9 @@ bool pair_server_run(const PairServerConfig *config) {
     server.listener = listener;
     tcp_arg(listener, &server);
     tcp_accept(listener, accept_client);
-    if (!publish(&server)) {
+    bool mdns_published = publish(&server);
+    if (!mdns_published) {
+        APP_LOG("PAIR_MDNS state=failed\n");
         tcp_close(listener);
         return false;
     }
@@ -234,7 +241,10 @@ bool pair_server_run(const PairServerConfig *config) {
         cyw43_arch_poll();
         if (time_reached(link_check)) {
             int link = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
-            if (link != CYW43_LINK_UP) {
+            if (link == CYW43_LINK_DOWN ||
+                link == CYW43_LINK_FAIL ||
+                link == CYW43_LINK_NONET ||
+                link == CYW43_LINK_BADAUTH) {
                 APP_LOG("PAIR_WIFI state=lost status=%d\n", link);
                 break;
             }
@@ -253,6 +263,8 @@ bool pair_server_run(const PairServerConfig *config) {
     tcp_arg(listener, NULL);
     tcp_accept(listener, NULL);
     tcp_close(listener);
-    mdns_resp_remove_netif(netif_default);
+    if (mdns_published) {
+        mdns_resp_remove_netif(netif_default);
+    }
     return server.complete;
 }
