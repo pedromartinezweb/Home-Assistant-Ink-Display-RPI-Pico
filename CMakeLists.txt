@@ -54,6 +54,7 @@ target_link_libraries(ha_ink_display
     pico_unique_id
     pico_bootsel_via_double_reset
     hardware_flash
+    hardware_watchdog
 )
 target_compile_options(ha_ink_display PRIVATE -Wall -Wextra -Werror)
 set_source_files_properties(

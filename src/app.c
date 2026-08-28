@@ -7,6 +7,7 @@
 #include "config.h"
 #include "frame.h"
 #include "factory_reset.h"
+#include "hardware/watchdog.h"
 #include "ink_client.h"
 #include "log.h"
 #include "pair_server.h"
@@ -20,8 +21,11 @@
 enum {
     WIFI_TIMEOUT_MS = 20000,
     RETRY_SECONDS = 60,
+    DISPLAY_RETRY_SECONDS = 15,
     INITIAL_FRAME_RETRY_SECONDS = 5,
-    DEFAULT_INTERVAL_SECONDS = 300
+    DEFAULT_INTERVAL_SECONDS = 300,
+    MAX_DISPLAY_FAILURES = 3,
+    MAX_CONNECTIVITY_FAILURES = 6
 };
 
 static uint32_t now_ms(void) {
@@ -63,14 +67,15 @@ static bool open_wifi(WifiSession *wifi, WifiSessionMode mode) {
     return false;
 }
 
-static void halt(EpdStatus status) {
+static void restart_system(const char *reason, int status) {
+    APP_LOG("[%lu ms] SYSTEM_RESTART reason=%s status=%d\n", now_ms(), reason, status);
+    watchdog_reboot(0, 0, 100);
     for (;;) {
-        APP_LOG("[%lu ms] SYSTEM_HALTED status=%s\n", now_ms(), epd_status_name(status));
-        sleep_ms(1000);
+        tight_loop_contents();
     }
 }
 
-static void present(App *app, const uint8_t *black, const uint8_t *red) {
+static EpdStatus present(App *app, const uint8_t *black, const uint8_t *red) {
     EpaperResult result = epaper_present(&app->epaper, black, red);
     APP_LOG("[%lu ms] PRESENT mode=%d status=%s bytes=%lu busy=%lu\n",
            now_ms(),
@@ -78,12 +83,10 @@ static void present(App *app, const uint8_t *black, const uint8_t *red) {
            epd_status_name(result.driver.status),
            (unsigned long)result.bytes,
            (unsigned long)result.driver.busy_ms);
-    if (result.driver.status != EPD_OK) {
-        halt(result.driver.status);
-    }
+    return result.driver.status;
 }
 
-static void present_pairing(App *app, const uint8_t *black, const uint8_t *red) {
+static EpdStatus present_pairing(App *app, const uint8_t *black, const uint8_t *red) {
     EpaperResult result = epaper_present(&app->epaper, black, red);
     APP_LOG("[%lu ms] PAIRING_PRESENT mode=%d status=%s bytes=%lu busy=%lu\n",
             now_ms(),
@@ -91,6 +94,7 @@ static void present_pairing(App *app, const uint8_t *black, const uint8_t *red) 
             epd_status_name(result.driver.status),
             (unsigned long)result.bytes,
             (unsigned long)result.driver.busy_ms);
+    return result.driver.status;
 }
 
 static void display_text(char *destination, size_t length, const char *source) {
@@ -105,7 +109,7 @@ static void display_text(char *destination, size_t length, const char *source) {
     destination[index] = '\0';
 }
 
-static void pairing_screen(App *app, uint32_t code, const WifiSession *wifi) {
+static EpdStatus pairing_screen(App *app, uint32_t code, const WifiSession *wifi) {
     char text[7];
     char ssid[WIFI_SESSION_SSID_MAX_LENGTH + 1];
     char ip_address[WIFI_SESSION_IP_ADDRESS_LENGTH];
@@ -128,7 +132,7 @@ static void pairing_screen(App *app, uint32_t code, const WifiSession *wifi) {
         frame_text_landscape(app->dashboard.black, 8, 104, "IP:", 1);
         frame_text_landscape(app->dashboard.black, 29, 104, ip_address, 1);
     }
-    present_pairing(app, app->dashboard.black, app->dashboard.red);
+    return present_pairing(app, app->dashboard.black, app->dashboard.red);
 }
 
 static void pair_device(App *app,
@@ -137,6 +141,7 @@ static void pair_device(App *app,
                         DeviceSettings *settings) {
     uint32_t code = (uint32_t)(get_rand_64() % 900000U) + 100000U;
     bool displayed = false;
+    uint8_t display_failures = 0;
     while (!settings->paired) {
         WifiSession wifi;
         if (!open_wifi(&wifi, WIFI_SESSION_PAIRING)) {
@@ -149,7 +154,24 @@ static void pair_device(App *app,
         }
         if (!displayed) {
             epaper_force_full(&app->epaper);
-            pairing_screen(app, code, &wifi);
+            EpdStatus display_status = pairing_screen(app, code, &wifi);
+            if (display_status != EPD_OK) {
+                wifi_session_close(&wifi);
+                display_failures++;
+                APP_LOG("[%lu ms] PAIRING_DISPLAY_ERROR status=%s failures=%u\n",
+                        now_ms(),
+                        epd_status_name(display_status),
+                        (unsigned int)display_failures);
+                if (display_failures >= MAX_DISPLAY_FAILURES) {
+                    restart_system("pairing_display", display_status);
+                }
+                if (factory_reset_sleep(DISPLAY_RETRY_SECONDS * 1000U)) {
+                    code = (uint32_t)(get_rand_64() % 900000U) + 100000U;
+                    displayed = false;
+                }
+                continue;
+            }
+            display_failures = 0;
             APP_LOG("[%lu ms] PAIRING_READY device=%s code=%06lu ssid=%s ip=%s\n",
                     now_ms(),
                     device_id,
@@ -174,21 +196,26 @@ static void pair_device(App *app,
     }
 }
 
-static bool update_display(App *app, const InkFrame *frame) {
+static EpdStatus update_display(App *app, const InkFrame *frame) {
     if (!dashboard_draw(&app->dashboard, &frame->data, &frame->config)) {
-        return false;
+        return EPD_ERROR_ARGUMENT;
     }
-    present(app, app->dashboard.black, app->dashboard.red);
-    return true;
+    return present(app, app->dashboard.black, app->dashboard.red);
 }
 
 static void run_paired(App *app, DeviceSettings *settings) {
     uint64_t revision = 0;
     uint32_t interval_seconds = INITIAL_FRAME_RETRY_SECONDS;
+    uint8_t display_failures = 0;
+    uint8_t connectivity_failures = 0;
     for (;;) {
         WifiSession wifi;
         if (!open_wifi(&wifi, WIFI_SESSION_POLLING)) {
+            connectivity_failures++;
             APP_LOG("[%lu ms] WIFI_ERROR status=%d\n", now_ms(), WIFI_SESSION_ERROR_CONNECT);
+            if (connectivity_failures >= MAX_CONNECTIVITY_FAILURES) {
+                restart_system("wifi", WIFI_SESSION_ERROR_CONNECT);
+            }
             if (factory_reset_sleep(RETRY_SECONDS * 1000U)) {
                 return;
             }
@@ -199,11 +226,22 @@ static void run_paired(App *app, DeviceSettings *settings) {
         InkClientStatus client_status = ink_client_poll(settings, revision, &next);
         wifi_session_close(&wifi);
         if (client_status == INK_CLIENT_UPDATED) {
-            if (!update_display(app, &next)) {
-                APP_LOG("[%lu ms] FRAME_REJECTED revision=%llu\n",
+            connectivity_failures = 0;
+            EpdStatus display_status = update_display(app, &next);
+            if (display_status != EPD_OK) {
+                display_failures++;
+                epaper_force_full(&app->epaper);
+                interval_seconds = DISPLAY_RETRY_SECONDS;
+                APP_LOG("[%lu ms] FRAME_REJECTED revision=%llu status=%s failures=%u\n",
                         now_ms(),
-                        (unsigned long long)next.revision);
+                        (unsigned long long)next.revision,
+                        epd_status_name(display_status),
+                        (unsigned int)display_failures);
+                if (display_failures >= MAX_DISPLAY_FAILURES) {
+                    restart_system("display", display_status);
+                }
             } else {
+                display_failures = 0;
                 revision = next.revision;
                 interval_seconds = next.interval_seconds;
                 APP_LOG("[%lu ms] FRAME_OK revision=%llu items=%u interval=%lu\n",
@@ -213,6 +251,7 @@ static void run_paired(App *app, DeviceSettings *settings) {
                         (unsigned long)interval_seconds);
             }
         } else if (client_status == INK_CLIENT_UNCHANGED) {
+            connectivity_failures = 0;
             APP_LOG("[%lu ms] FRAME_UNCHANGED revision=%llu\n",
                     now_ms(),
                     (unsigned long long)revision);
@@ -220,8 +259,12 @@ static void run_paired(App *app, DeviceSettings *settings) {
                 interval_seconds = INITIAL_FRAME_RETRY_SECONDS;
             }
         } else {
+            connectivity_failures++;
             APP_LOG("[%lu ms] POLL_ERROR status=%d\n", now_ms(), client_status);
             interval_seconds = RETRY_SECONDS;
+            if (connectivity_failures >= MAX_CONNECTIVITY_FAILURES) {
+                restart_system("poll", client_status);
+            }
         }
         if (factory_reset_sleep(interval_seconds * 1000U)) {
             return;
@@ -231,12 +274,12 @@ static void run_paired(App *app, DeviceSettings *settings) {
 
 void app_run(App *app, const EpdConfig *display) {
     if (app == NULL || display == NULL || APP_WIFI_SSID[0] == '\0') {
-        halt(EPD_ERROR_ARGUMENT);
+        restart_system("configuration", EPD_ERROR_ARGUMENT);
     }
     APP_LOG("[%lu ms] START version=1 transport=ha-poll signed=1\n", now_ms());
     EpdStatus status = epaper_open(&app->epaper, display);
     if (status != EPD_OK) {
-        halt(status);
+        restart_system("display_open", status);
     }
     start_usb_maintenance();
     factory_reset_boot();

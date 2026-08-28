@@ -55,6 +55,13 @@ EpaperResult epaper_present(Epaper *epaper, const uint8_t *black, const uint8_t 
                                         value.region.y,
                                         value.region.width,
                                         value.region.height);
+        if (value.driver.status != EPD_OK) {
+            epaper->has_frame = false;
+            value.mode = EPAPER_PRESENT_FULL;
+            value.region = (FrameRegion){.x = 0, .y = 0, .width = EPD_WIDTH, .height = EPD_HEIGHT};
+            value.bytes = 2U * EPD_BUFFER_SIZE;
+            value.driver = epd_draw(&epaper->driver, black, red);
+        }
     }
 
     if (value.driver.status == EPD_OK && value.mode != EPAPER_PRESENT_NONE) {

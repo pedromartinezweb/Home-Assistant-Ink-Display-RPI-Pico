@@ -168,6 +168,13 @@ Home Assistant watches only the configured entities. When one changes, it keeps 
 
 After pairing or rebooting, the Pico checks every five seconds until it receives its first valid frame. It then uses the interval selected in Home Assistant. This avoids leaving the pairing screen visible while waiting for the first regular update.
 
+The firmware also recovers automatically from transient failures:
+
+- A failed partial e-paper refresh is retried immediately as a full refresh.
+- Display failures are retried after 15 seconds; three consecutive failures restart the Pico through the hardware watchdog.
+- Wi-Fi and Home Assistant polling failures retain the current image and retry every minute; six consecutive failures restart the Pico and its network stack.
+- Pairing credentials and the Home Assistant layout remain stored across these recovery restarts.
+
 The 60-second minimum protects the tri-color panel from continuous updates. Five minutes is recommended for environmental sensors.
 
 ## Power and USB updates
@@ -213,6 +220,7 @@ To change Wi-Fi, run the setup tool again and install the new UF2. Each build ge
 | The installer cannot install tools | Confirm Internet access and accept the administrator prompt |
 | The first upload cannot find a Pico | Use a USB data cable and hold `BOOTSEL` while connecting it. Later uploads are performed automatically. |
 | The display never changes | Check every wire, 3.3 V power, and the `SB1`/`SB2` SPI setting |
+| The displayed time stops advancing | The firmware retries the display and network automatically. If it remains frozen after ten minutes, reconnect power and inspect the USB debug log. |
 | Pairing code appears but discovery fails | Confirm both devices use the same LAN and mDNS is not blocked |
 | Pairing fails | Enter the current code before restarting the Pico |
 | The sidebar editor is missing | Update through HACS and restart Home Assistant |
